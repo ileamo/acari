@@ -6,10 +6,10 @@ defmodule Acari.Application do
   use Application
 
   def start(_type, _args) do
+    IO.puts("START ACARI")
     # List all child processes to be supervised
     children = [
-      # Starts a worker by calling: Acari.Worker.start_link(arg)
-      # {Acari.Worker, arg},
+      Acari.Iface
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
