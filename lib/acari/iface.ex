@@ -33,7 +33,9 @@ defmodule Acari.Iface do
            ),
          {_, 0} <- System.cmd("ip", ["link", "set", name, "up"], stderr_to_stdout: true) do
       Logger.debug("Create iface #{name}")
-      state = %{ifsocket: ref, ifname: name, links_list: []}
+
+      {:ok, pid} = Acari.Link.start_child(%{iface_pid: self()})
+      state = %{ifsocket: ref, ifname: name, links_list: [%{pid: pid}]}
       {:ok, state}
     else
       {err, _} ->
