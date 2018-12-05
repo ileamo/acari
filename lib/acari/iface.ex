@@ -1,6 +1,7 @@
 defmodule Acari.Iface do
   require Logger
   use GenServer
+  alias Acari.Link
 
   @moduledoc """
   For IPv4 addresses, beam needs to have privileges to configure interfaces.
@@ -21,10 +22,12 @@ defmodule Acari.Iface do
   @impl true
   def init(_params) do
     Logger.debug("START IFACE")
-    {:ok, ref} = :tuncer.create(<<>>, [:tun, :no_pi, active: true])
-    :tuncer.persist(ref, false)
-    name = :tuncer.devname(ref)
+    {:ok, ifsocket} = :tuncer.create(<<>>, [:tun, :no_pi, active: true])
+    :tuncer.persist(ifsocket, false)
+    name = :tuncer.devname(ifsocket)
+    {:ok, iface_sender_pid} = Acari.IfaceSender.start_link(%{ifsocket: ifsocket})
 
+    # TODO Start all links
     with {_, 0} <-
            System.cmd(
              "ip",
@@ -34,28 +37,40 @@ defmodule Acari.Iface do
          {_, 0} <- System.cmd("ip", ["link", "set", name, "up"], stderr_to_stdout: true) do
       Logger.debug("Create iface #{name}")
 
-      {:ok, pid} = Acari.Link.start_child(%{iface_pid: self()})
-      state = %{ifsocket: ref, ifname: name, links_list: [%{pid: pid}]}
+      {:ok, pid} = Link.start_child(%{iface_pid: self(), iface_sender_pid: iface_sender_pid})
+      state = %{ifsocket: ifsocket, ifname: name, links_list: [%{pid: pid}]}
       {:ok, state}
     else
       {err, _} ->
         Logger.error(err)
-        :tuncer.destroy(ref)
+        :tuncer.destroy(ifsocket)
         {:stop, err}
     end
   end
 
   @impl true
-  def handle_call({:send, packet}, _from, state = %{ifsocket: ifsocket}) do
-    Logger.debug("IFACE handle_call, packet: #{inspect(packet)}")
-    :tuncer.send(ifsocket, to_string(packet))
-    {:reply, :ok, state}
+  def handle_cast({:set_link_sender_pid, _pid, sender_pid}, %{links_list: links_list} = state) do
+    links_list =
+      links_list |> List.update_at(0, fn x -> x |> Map.put(:sender_pid, sender_pid) end)
+
+    {:noreply, state |> Map.put(:links_list, links_list)}
   end
 
   @impl true
-  def handle_info({:tuntap, _pid, packet}, state = %{links_list: [%{pid: link_pid} | _]}) do
+  def handle_info(
+        {:tuntap, _pid, packet},
+        state = %{links_list: [%{sender_pid: link_sender_pid} | _]}
+      ) do
     Logger.debug("Iface #{state[:ifname]}: receive #{byte_size(packet)}")
-    GenServer.call(link_pid, {:send, packet})
+    GenServer.cast(link_sender_pid, {:send, packet})
+    {:noreply, state}
+  end
+
+  def handle_info(
+        {:tuntap, _pid, _packet},
+        state
+      ) do
+    Logger.debug("Iface #{state[:ifname]}: No link to send")
     {:noreply, state}
   end
 
@@ -67,6 +82,33 @@ defmodule Acari.Iface do
 
   def handle_info(msg, state) do
     Logger.warn("Iface server: unknown message: #{inspect(msg)}")
+    {:noreply, state}
+  end
+
+  # client
+  def set_link_sender_pid(iface_pid, link_pid, link_sender_pid) do
+    GenServer.cast(iface_pid, {:set_link_sender_pid, link_pid, link_sender_pid})
+  end
+end
+
+defmodule Acari.IfaceSender do
+  require Logger
+  use GenServer
+
+  def start_link(params) do
+    GenServer.start_link(__MODULE__, params)
+  end
+
+  ## Callbacks
+  @impl true
+  def init(state) do
+    {:ok, state}
+  end
+
+  @impl true
+  def handle_cast({:send, packet}, state = %{ifsocket: ifsocket}) do
+    :tuncer.send(ifsocket, to_string(packet))
+    Logger.debug("IFACE SEND #{length(packet)} bytes")
     {:noreply, state}
   end
 end
