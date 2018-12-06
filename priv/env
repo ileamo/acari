@@ -1,0 +1,5 @@
+nsg_device=NSG1700
+serial_num=1701000069
+ethaddr=00:09:56:32:00:CF
+hw_sign=001
+fw_media=nfs

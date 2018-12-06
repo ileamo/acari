@@ -10,6 +10,7 @@ defmodule Acari.Application do
     :ssl.start()
     # List all child processes to be supervised
     children = [
+      Acari.Config,
       Acari.LinkSupervisor,
       Acari.Iface
     ]

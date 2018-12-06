@@ -1,0 +1,14 @@
+{
+  "serverss": [{
+    "host": "localhost",
+    "port": 7000
+  }],
+
+  "links": [{
+      "name": "m1"
+    },
+    {
+      "name": "m2"
+    }
+  ]
+}
