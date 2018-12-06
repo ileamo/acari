@@ -11,8 +11,8 @@ defmodule Acari.Application do
     # List all child processes to be supervised
     children = [
       Acari.Config,
-      Acari.LinkSupervisor,
-      Acari.Iface
+      Acari.Iface,
+      Acari.LinkSupervisor
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html

@@ -1,7 +1,6 @@
 defmodule Acari.Iface do
   require Logger
   use GenServer
-  alias Acari.Link
 
   @moduledoc """
   For IPv4 addresses, beam needs to have privileges to configure interfaces.
@@ -15,7 +14,7 @@ defmodule Acari.Iface do
   """
 
   def start_link(params) do
-    GenServer.start_link(__MODULE__, params)
+    GenServer.start_link(__MODULE__, params, name: __MODULE__)
   end
 
   ## Callbacks
@@ -25,9 +24,8 @@ defmodule Acari.Iface do
     {:ok, ifsocket} = :tuncer.create(<<>>, [:tun, :no_pi, active: true])
     :tuncer.persist(ifsocket, false)
     name = :tuncer.devname(ifsocket)
-    {:ok, iface_sender_pid} = Acari.IfaceSender.start_link(%{ifsocket: ifsocket})
+    {:ok, ifsender_pid} = Acari.IfaceSender.start_link(%{ifsocket: ifsocket})
 
-    # TODO Start all links
     with {_, 0} <-
            System.cmd(
              "ip",
@@ -35,10 +33,8 @@ defmodule Acari.Iface do
              stderr_to_stdout: true
            ),
          {_, 0} <- System.cmd("ip", ["link", "set", name, "up"], stderr_to_stdout: true) do
-      Logger.debug("Create iface #{name}")
-
-      {:ok, pid} = Link.start_child(%{iface_pid: self(), iface_sender_pid: iface_sender_pid})
-      state = %{ifsocket: ifsocket, ifname: name, links_list: [%{pid: pid}]}
+      Logger.info("Iface #{name} created and UP")
+      state = %{ifsocket: ifsocket, ifname: name, ifsender_pid: ifsender_pid, links_list: []}
       {:ok, state}
     else
       {err, _} ->
@@ -50,10 +46,13 @@ defmodule Acari.Iface do
 
   @impl true
   def handle_cast({:set_link_sender_pid, _pid, sender_pid}, %{links_list: links_list} = state) do
-    links_list =
-      links_list |> List.update_at(0, fn x -> x |> Map.put(:sender_pid, sender_pid) end)
-
+    links_list = [%{sender_pid: sender_pid} | links_list]
     {:noreply, state |> Map.put(:links_list, links_list)}
+  end
+
+  @impl true
+  def handle_call(:get_ifsender_pid, _from, %{ifsender_pid: ifsender_pid} = state) do
+    {:reply, ifsender_pid, state}
   end
 
   @impl true
@@ -76,7 +75,7 @@ defmodule Acari.Iface do
 
   def handle_info({:tuntap_error, _pid, reason}, state = %{links_list: links_list}) do
     Logger.error("Iface #{state[:ifname]}: #{inspect(reason)}")
-    links_list |> Enum.each(fn %{pid: pid} -> GenServer.cast(pid, :terminate) end)
+    links_list |> Enum.each(fn %{sender_pid: pid} -> GenServer.cast(pid, :terminate) end)
     {:stop, :normal, state}
   end
 
@@ -88,6 +87,10 @@ defmodule Acari.Iface do
   # client
   def set_link_sender_pid(iface_pid, link_pid, link_sender_pid) do
     GenServer.cast(iface_pid, {:set_link_sender_pid, link_pid, link_sender_pid})
+  end
+
+  def get_ifsender_pid() do
+    GenServer.call(__MODULE__, :get_ifsender_pid)
   end
 end
 

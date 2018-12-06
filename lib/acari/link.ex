@@ -1,6 +1,7 @@
 defmodule Acari.Link do
   require Logger
-  use GenServer, restart: :temporary
+  use GenServer
+  alias Acari.Iface
 
   def start_link(state) do
     GenServer.start_link(__MODULE__, state)
@@ -14,16 +15,23 @@ defmodule Acari.Link do
   end
 
   @impl true
-  def handle_continue(:init, %{iface_pid: iface_pid} = state) do
+  def handle_continue(:init, state) do
     Logger.debug("LINK CONTINUE")
 
     case :ssl.connect('localhost', 7000, [packet: 2], 5000) do
       {:ok, sslsocket} ->
         {:ok, sender_pid} = Acari.LinkSender.start_link(%{sslsocket: sslsocket})
-        Acari.Iface.set_link_sender_pid(iface_pid, self(), sender_pid)
+        ifsender_pid = Iface.get_ifsender_pid()
+        Iface.set_link_sender_pid(Iface, self(), sender_pid)
 
         {:noreply,
-         state |> Map.merge(%{pid: self(), sslsocket: sslsocket, sender_pid: sender_pid})}
+         state
+         |> Map.merge(%{
+           pid: self(),
+           sslsocket: sslsocket,
+           sender_pid: sender_pid,
+           ifsender_pid: ifsender_pid
+         })}
 
       {:error, reason} ->
         Logger.error("Can't connect: #{inspect(reason)}")
@@ -37,9 +45,9 @@ defmodule Acari.Link do
   end
 
   @impl true
-  def handle_info({:ssl, _sslsocket, data}, state = %{iface_sender_pid: iface_sender_pid}) do
+  def handle_info({:ssl, _sslsocket, data}, state = %{ifsender_pid: ifsender_pid}) do
     Logger.debug("SSL RECV #{length(data)} bytes")
-    GenServer.cast(iface_sender_pid, {:send, data})
+    GenServer.cast(ifsender_pid, {:send, data})
 
     {:noreply, state}
   end
