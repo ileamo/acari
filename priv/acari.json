@@ -1,5 +1,5 @@
 {
-  "serverss": [{
+  "servers": [{
     "host": "localhost",
     "port": 7000
   }],

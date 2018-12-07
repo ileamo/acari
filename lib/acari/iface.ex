@@ -76,7 +76,7 @@ defmodule Acari.Iface do
   def handle_info({:tuntap_error, _pid, reason}, state = %{links_list: links_list}) do
     Logger.error("Iface #{state[:ifname]}: #{inspect(reason)}")
     links_list |> Enum.each(fn %{sender_pid: pid} -> GenServer.cast(pid, :terminate) end)
-    {:stop, :normal, state}
+    {:stop, :shutdown, state}
   end
 
   def handle_info(msg, state) do

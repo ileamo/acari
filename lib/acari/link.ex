@@ -18,30 +18,36 @@ defmodule Acari.Link do
   def handle_continue(:init, state) do
     Logger.debug("LINK CONTINUE")
 
-    case :ssl.connect('localhost', 7000, [packet: 2], 5000) do
-      {:ok, sslsocket} ->
-        {:ok, sender_pid} = Acari.LinkSender.start_link(%{sslsocket: sslsocket})
-        ifsender_pid = Iface.get_ifsender_pid()
-        Iface.set_link_sender_pid(Iface, self(), sender_pid)
+    sslsocket = connect(%{"host" => 'localhost', "port" => 7000})
+    {:ok, sender_pid} = Acari.LinkSender.start_link(%{sslsocket: sslsocket})
+    ifsender_pid = Iface.get_ifsender_pid()
+    Iface.set_link_sender_pid(Iface, self(), sender_pid)
 
-        {:noreply,
-         state
-         |> Map.merge(%{
-           pid: self(),
-           sslsocket: sslsocket,
-           sender_pid: sender_pid,
-           ifsender_pid: ifsender_pid
-         })}
+    {:noreply,
+     state
+     |> Map.merge(%{
+       pid: self(),
+       sslsocket: sslsocket,
+       sender_pid: sender_pid,
+       ifsender_pid: ifsender_pid
+     })}
+  end
+
+  defp connect(%{"host" => host, "port" => port} = parms) do
+    case :ssl.connect(to_charlist(host), port, [packet: 2], 5000) do
+      {:ok, sslsocket} ->
+        sslsocket
 
       {:error, reason} ->
-        Logger.error("Can't connect: #{inspect(reason)}")
-        {:stop, reason, state}
+        Logger.warn("Can't connect #{host}:#{port}: #{inspect(reason)}")
+        Process.sleep(10_000)
+        connect(parms)
     end
   end
 
   @impl true
   def handle_cast(:terminate, state) do
-    {:stop, :normal, state}
+    {:stop, :shutdown, state}
   end
 
   @impl true
@@ -53,11 +59,11 @@ defmodule Acari.Link do
   end
 
   def handle_info({:ssl_closed, _sslsocket}, state) do
-    {:stop, :normal, state}
+    {:stop, :shutdown, state}
   end
 
   def handle_info({:ssl_error, _sslsocket, _reason}, state) do
-    {:stop, :normal, state}
+    {:stop, :shutdown, state}
   end
 
   def handle_info(msg, state) do
@@ -90,8 +96,20 @@ defmodule Acari.LinkSender do
 
   @impl true
   def handle_cast({:send, packet}, state = %{sslsocket: sslsocket}) do
-    :ssl.send(sslsocket, packet)
-    Logger.debug("SEND TO SSL #{byte_size(packet)} bytes")
+    case :ssl.send(sslsocket, packet) do
+      :ok ->
+        Logger.debug("SEND TO SSL(#{inspect(self())}) #{byte_size(packet)} bytes")
+        {:noreply, state}
+
+      {:error, reason} ->
+        Logger.warn("Can't send to SSL socket: #{inspect(reason)}")
+        {:stop, :shutdown}
+    end
+  end
+
+  @impl true
+  def handle_info(msg, state) do
+    Logger.warn("Link sender info: #{inspect(msg)}")
     {:noreply, state}
   end
 end
