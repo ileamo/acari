@@ -11,14 +11,12 @@ defmodule Acari.Link do
   ## Callbacks
   @impl true
   def init(state) do
-    Logger.debug("START LINK")
+    Logger.debug("START LINK #{inspect(state)}")
     {:ok, state, {:continue, :init}}
   end
 
   @impl true
   def handle_continue(:init, %{name: name} = state) do
-    Logger.debug("LINK CONTINUE")
-
     sslsocket = connect(%{"host" => 'localhost', "port" => 7000})
     {:ok, sender_pid} = Acari.LinkSender.start_link(%{sslsocket: sslsocket})
     ifsender_pid = Iface.get_ifsender_pid()
@@ -53,7 +51,7 @@ defmodule Acari.Link do
 
   @impl true
   def handle_info({:ssl, _sslsocket, data}, state = %{ifsender_pid: ifsender_pid}) do
-    Logger.debug("SSL RECV #{length(data)} bytes")
+    Logger.debug("SSL recv #{length(data)} bytes")
     GenServer.cast(ifsender_pid, {:send, data})
 
     {:noreply, state}
@@ -68,7 +66,7 @@ defmodule Acari.Link do
   end
 
   def handle_info(msg, state) do
-    Logger.warn("Link server: unknown message: #{inspect(msg)}")
+    Logger.warn("SSL: unknown message: #{inspect(msg)}")
     {:noreply, state}
   end
 
@@ -99,7 +97,7 @@ defmodule Acari.LinkSender do
   def handle_cast({:send, packet}, state = %{sslsocket: sslsocket}) do
     case :ssl.send(sslsocket, packet) do
       :ok ->
-        Logger.debug("SEND TO SSL(#{inspect(self())}) #{byte_size(packet)} bytes")
+        Logger.debug("SSL send #{byte_size(packet)} bytes")
         {:noreply, state}
 
       {:error, reason} ->
@@ -110,7 +108,7 @@ defmodule Acari.LinkSender do
 
   @impl true
   def handle_info(msg, state) do
-    Logger.warn("Link sender info: #{inspect(msg)}")
+    Logger.warn("SSL SENDER info: #{inspect(msg)}")
     {:noreply, state}
   end
 end

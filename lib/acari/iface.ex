@@ -20,7 +20,7 @@ defmodule Acari.Iface do
   ## Callbacks
   @impl true
   def init(_params) do
-    Logger.debug("START IFACE")
+    Logger.debug("IFACE started")
     {:ok, ifsocket} = :tuncer.create(<<>>, [:tun, :no_pi, active: true])
     :tuncer.persist(ifsocket, false)
     name = :tuncer.devname(ifsocket)
@@ -33,7 +33,7 @@ defmodule Acari.Iface do
              stderr_to_stdout: true
            ),
          :ok = if_up(name) do
-      Logger.info("Iface #{name} created and UP")
+      Logger.info("IFACE created and UP")
 
       state = %{
         ifsocket: ifsocket,
@@ -45,7 +45,7 @@ defmodule Acari.Iface do
       {:ok, state}
     else
       {err, _} ->
-        Logger.error(err)
+        Logger.error("IFACE not started: #{inspect(err)}")
         :tuncer.destroy(ifsocket)
         {:stop, err}
     end
@@ -65,29 +65,33 @@ defmodule Acari.Iface do
   def handle_info(
         {:tuntap, _pid, packet},
         state = %{lisender_pid: lisender_pid}
-      ) do
-    Logger.debug("Iface #{state[:ifname]}: receive #{byte_size(packet)}")
-    GenServer.cast(lisender_pid, {:send, packet})
-    {:noreply, state}
+      )
+      when is_pid(lisender_pid) do
+    case Process.alive?(lisender_pid) do
+      true ->
+        Logger.debug("IFACE receive #{byte_size(packet)}")
+        GenServer.cast(lisender_pid, {:send, packet})
+        {:noreply, state}
+
+      _ ->
+        {:noreply, %{state | lisender_pid: nil}}
+    end
   end
 
-  def handle_info(
-        {:tuntap, _pid, _packet},
-        %{ifname: ifname} = state
-      ) do
-    Logger.debug("Iface #{ifname}: No link to send")
+  def handle_info({:tuntap, _pid, _packet}, state) do
+    Logger.debug("IFACE: No link to send")
     # if_down(ifname)
     {:noreply, %{state | up: false}}
   end
 
   def handle_info({:tuntap_error, _pid, reason}, state) do
-    Logger.error("Iface #{state[:ifname]}: #{inspect(reason)}")
+    Logger.error("IFACE: #{inspect(reason)}")
     # GenServer.cast(pid, :terminate)
     {:stop, :shutdown, state}
   end
 
   def handle_info(msg, state) do
-    Logger.warn("Iface server: unknown message: #{inspect(msg)}")
+    Logger.warn("IFACE: unknown message: #{inspect(msg)}")
     {:noreply, state}
   end
 
@@ -126,7 +130,7 @@ defmodule Acari.IfaceSender do
   @impl true
   def handle_cast({:send, packet}, state = %{ifsocket: ifsocket}) do
     :tuncer.send(ifsocket, to_string(packet))
-    Logger.debug("IFACE SEND #{length(packet)} bytes")
+    Logger.debug("IFACE send #{length(packet)} bytes")
     {:noreply, state}
   end
 end
