@@ -39,8 +39,7 @@ defmodule Acari.Iface do
         ifsocket: ifsocket,
         ifname: name,
         ifsender_pid: ifsender_pid,
-        up: true,
-        links_list: []
+        up: true
       }
 
       {:ok, state}
@@ -53,9 +52,8 @@ defmodule Acari.Iface do
   end
 
   @impl true
-  def handle_cast({:set_link_sender_pid, _pid, sender_pid}, %{links_list: links_list} = state) do
-    links_list = [%{sender_pid: sender_pid} | links_list]
-    {:noreply, state |> Map.put(:links_list, links_list)}
+  def handle_cast({:set_lisender_pid, lisender_pid}, state) do
+    {:noreply, state |> Map.put(:lisender_pid, lisender_pid)}
   end
 
   @impl true
@@ -66,10 +64,10 @@ defmodule Acari.Iface do
   @impl true
   def handle_info(
         {:tuntap, _pid, packet},
-        state = %{links_list: [%{sender_pid: link_sender_pid} | _]}
+        state = %{lisender_pid: lisender_pid}
       ) do
     Logger.debug("Iface #{state[:ifname]}: receive #{byte_size(packet)}")
-    GenServer.cast(link_sender_pid, {:send, packet})
+    GenServer.cast(lisender_pid, {:send, packet})
     {:noreply, state}
   end
 
@@ -77,14 +75,14 @@ defmodule Acari.Iface do
         {:tuntap, _pid, _packet},
         %{ifname: ifname} = state
       ) do
-    Logger.debug("Iface #{state[:ifname]}: No link to send")
+    Logger.debug("Iface #{ifname}: No link to send")
     # if_down(ifname)
     {:noreply, %{state | up: false}}
   end
 
-  def handle_info({:tuntap_error, _pid, reason}, state = %{links_list: links_list}) do
+  def handle_info({:tuntap_error, _pid, reason}, state) do
     Logger.error("Iface #{state[:ifname]}: #{inspect(reason)}")
-    links_list |> Enum.each(fn %{sender_pid: pid} -> GenServer.cast(pid, :terminate) end)
+    # GenServer.cast(pid, :terminate)
     {:stop, :shutdown, state}
   end
 
@@ -94,8 +92,8 @@ defmodule Acari.Iface do
   end
 
   # client
-  def set_link_sender_pid(iface_pid, link_pid, link_sender_pid) do
-    GenServer.cast(iface_pid, {:set_link_sender_pid, link_pid, link_sender_pid})
+  def set_lisender_pid(iface_pid, lisender_pid) do
+    GenServer.cast(iface_pid, {:set_lisender_pid, lisender_pid})
   end
 
   def get_ifsender_pid() do

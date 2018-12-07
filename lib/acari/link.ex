@@ -2,6 +2,7 @@ defmodule Acari.Link do
   require Logger
   use GenServer
   alias Acari.Iface
+  alias Acari.LinkManager
 
   def start_link(state) do
     GenServer.start_link(__MODULE__, state)
@@ -15,13 +16,13 @@ defmodule Acari.Link do
   end
 
   @impl true
-  def handle_continue(:init, state) do
+  def handle_continue(:init, %{name: name} = state) do
     Logger.debug("LINK CONTINUE")
 
     sslsocket = connect(%{"host" => 'localhost', "port" => 7000})
     {:ok, sender_pid} = Acari.LinkSender.start_link(%{sslsocket: sslsocket})
     ifsender_pid = Iface.get_ifsender_pid()
-    Iface.set_link_sender_pid(Iface, self(), sender_pid)
+    LinkManager.set_link_sender_pid(name, sender_pid)
 
     {:noreply,
      state
