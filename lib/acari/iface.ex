@@ -32,9 +32,17 @@ defmodule Acari.Iface do
              ["address", "add", "192.168.123.5/32", "peer", "192.168.123.4", "dev", name],
              stderr_to_stdout: true
            ),
-         {_, 0} <- System.cmd("ip", ["link", "set", name, "up"], stderr_to_stdout: true) do
+         :ok = if_up(name) do
       Logger.info("Iface #{name} created and UP")
-      state = %{ifsocket: ifsocket, ifname: name, ifsender_pid: ifsender_pid, links_list: []}
+
+      state = %{
+        ifsocket: ifsocket,
+        ifname: name,
+        ifsender_pid: ifsender_pid,
+        up: true,
+        links_list: []
+      }
+
       {:ok, state}
     else
       {err, _} ->
@@ -67,10 +75,11 @@ defmodule Acari.Iface do
 
   def handle_info(
         {:tuntap, _pid, _packet},
-        state
+        %{ifname: ifname} = state
       ) do
     Logger.debug("Iface #{state[:ifname]}: No link to send")
-    {:noreply, state}
+    # if_down(ifname)
+    {:noreply, %{state | up: false}}
   end
 
   def handle_info({:tuntap_error, _pid, reason}, state = %{links_list: links_list}) do
@@ -91,6 +100,14 @@ defmodule Acari.Iface do
 
   def get_ifsender_pid() do
     GenServer.call(__MODULE__, :get_ifsender_pid)
+  end
+
+  defp if_up(ifname), do: if_set_admstate(ifname, "up")
+  defp if_down(ifname), do: if_set_admstate(ifname, "down")
+
+  defp if_set_admstate(ifname, admstate) do
+    {_, 0} = System.cmd("ip", ["link", "set", ifname, admstate], stderr_to_stdout: true)
+    :ok
   end
 end
 

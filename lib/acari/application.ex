@@ -12,7 +12,8 @@ defmodule Acari.Application do
     children = [
       Acari.Config,
       Acari.Iface,
-      Acari.LinkSupervisor
+      Acari.LinkSupervisor,
+      Acari.LinkManager
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
