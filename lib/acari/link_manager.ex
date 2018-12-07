@@ -14,9 +14,11 @@ defmodule Acari.LinkManager do
   def init(_state) do
     Logger.debug("START LINK MANAGER")
     links = :ets.new(:links, [:set, :protected, :named_table])
+    Process.flag(:trap_exit, true)
 
     for name <- ["Link_A", "Link_B"] do
       {:ok, pid} = LinkSupervisor.start_link_worker(LinkSupervisor, {Link, %{name: name}})
+      true = Process.link(pid)
       true = :ets.insert_new(links, {name, pid, nil, %{}})
     end
 

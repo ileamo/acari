@@ -1,6 +1,6 @@
 defmodule Acari.Link do
   require Logger
-  use GenServer
+  use GenServer, restart: :temporary
   alias Acari.Iface
   alias Acari.LinkManager
 
