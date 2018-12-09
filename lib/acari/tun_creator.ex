@@ -9,7 +9,12 @@ defmodule Acari.TunCreator do
   @impl true
   def init(state) do
     IO.puts("TUN_CREATOR")
-    DynamicSupervisor.start_child(Acari.TunsSup, Acari.TunSup)
+
+    DynamicSupervisor.start_child(
+      Acari.TunsSup,
+      {Acari.TunSup, %{sslinks: [%{name: "Link_A"}, %{name: "Link_B"}]}}
+    )
+
     {:ok, state}
   end
 end

@@ -6,14 +6,14 @@ defmodule Acari.TunSup do
   end
 
   @impl true
-  def init(_args) do
+  def init(params) do
     IO.puts("TUN_SUP")
     :ssl.start()
     # List all child processes to be supervised
     children = [
       Acari.Iface,
       Acari.SSLinkSup,
-      Acari.TunMan
+      {Acari.TunMan, params}
     ]
 
     opts = [strategy: :one_for_all, name: Acari.Supervisor]
