@@ -43,6 +43,15 @@ defmodule Acari.TunMan do
     {:reply, res, state}
   end
 
+  @impl true
+  def handle_info({:EXIT, pid, _reason}, %State{sslinks: sslinks} = state) do
+    [[name, params]] = :ets.match(sslinks, {:"$1", pid, :_, :"$2"})
+    {:ok, pid} = SSLinkSup.start_link_worker(SSLinkSup, {SSLink, %{name: name}})
+    true = Process.link(pid)
+    true = :ets.insert(sslinks, {name, pid, nil, params})
+    {:noreply, state}
+  end
+
   # Client
   def get_all_links() do
     GenServer.call(__MODULE__, :get_all_links)
