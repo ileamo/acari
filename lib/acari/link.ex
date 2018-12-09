@@ -2,7 +2,7 @@ defmodule Acari.Link do
   require Logger
   use GenServer, restart: :temporary
   alias Acari.Iface
-  alias Acari.LinkManager
+  alias Acari.TunMan
 
   def start_link(state) do
     GenServer.start_link(__MODULE__, state)
@@ -20,7 +20,7 @@ defmodule Acari.Link do
     sslsocket = connect(%{"host" => 'localhost', "port" => 7000})
     {:ok, sender_pid} = Acari.LinkSender.start_link(%{sslsocket: sslsocket})
     ifsender_pid = Iface.get_ifsender_pid()
-    LinkManager.set_link_sender_pid(name, sender_pid)
+    TunMan.set_link_sender_pid(name, sender_pid)
 
     {:noreply,
      state
@@ -73,7 +73,7 @@ defmodule Acari.Link do
   # Client
   def start_child(param) do
     DynamicSupervisor.start_child(
-      Acari.LinkSupervisor,
+      Acari.SSLinkSup,
       child_spec(param)
     )
   end

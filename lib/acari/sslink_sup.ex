@@ -1,4 +1,4 @@
-defmodule Acari.LinkSupervisor do
+defmodule Acari.SSLinkSup do
   use DynamicSupervisor
 
   def start_link(arg) do

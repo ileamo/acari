@@ -12,8 +12,8 @@ defmodule Acari.TunSup do
     # List all child processes to be supervised
     children = [
       Acari.Iface,
-      Acari.LinkSupervisor,
-      Acari.LinkManager
+      Acari.SSLinkSup,
+      Acari.TunMan
     ]
 
     opts = [strategy: :one_for_all, name: Acari.Supervisor]
