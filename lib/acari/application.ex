@@ -11,14 +11,13 @@ defmodule Acari.Application do
     # List all child processes to be supervised
     children = [
       Acari.Config,
-      Acari.Iface,
-      Acari.LinkSupervisor,
-      Acari.LinkManager
+      Acari.TunsSup,
+      Acari.TunCreator
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
-    opts = [strategy: :one_for_all, name: Acari.Supervisor]
+    opts = [strategy: :one_for_one, name: Acari.Supervisor]
     Supervisor.start_link(children, opts)
   end
 end
