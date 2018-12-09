@@ -22,9 +22,7 @@ defmodule Acari.TunMan do
     Process.flag(:trap_exit, true)
 
     for name <- ["Link_A", "Link_B"] do
-      {:ok, pid} = SSLinkSup.start_link_worker(SSLinkSup, {SSLink, %{name: name}})
-      true = Process.link(pid)
-      true = :ets.insert_new(sslinks, {name, pid, nil, %{}})
+      update_sslink(sslinks, name, %{})
     end
 
     {:ok, %State{sslinks: sslinks}}
@@ -46,10 +44,15 @@ defmodule Acari.TunMan do
   @impl true
   def handle_info({:EXIT, pid, _reason}, %State{sslinks: sslinks} = state) do
     [[name, params]] = :ets.match(sslinks, {:"$1", pid, :_, :"$2"})
+    update_sslink(sslinks, name, params)
+    {:noreply, state}
+  end
+
+  # Private
+  defp update_sslink(sslinks, name, params) do
     {:ok, pid} = SSLinkSup.start_link_worker(SSLinkSup, {SSLink, %{name: name}})
     true = Process.link(pid)
     true = :ets.insert(sslinks, {name, pid, nil, params})
-    {:noreply, state}
   end
 
   # Client
