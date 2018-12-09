@@ -1,4 +1,4 @@
-defmodule Acari.Link do
+defmodule Acari.SSLink do
   require Logger
   use GenServer, restart: :temporary
   alias Acari.Iface
@@ -18,7 +18,7 @@ defmodule Acari.Link do
   @impl true
   def handle_continue(:init, %{name: name} = state) do
     sslsocket = connect(%{"host" => 'localhost', "port" => 7000})
-    {:ok, sender_pid} = Acari.LinkSender.start_link(%{sslsocket: sslsocket})
+    {:ok, sender_pid} = Acari.SSLinkSnd.start_link(%{sslsocket: sslsocket})
     ifsender_pid = Iface.get_ifsender_pid()
     TunMan.set_link_sender_pid(name, sender_pid)
 
@@ -79,7 +79,7 @@ defmodule Acari.Link do
   end
 end
 
-defmodule Acari.LinkSender do
+defmodule Acari.SSLinkSnd do
   require Logger
   use GenServer, restart: :temporary
 

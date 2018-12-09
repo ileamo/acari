@@ -2,7 +2,7 @@ defmodule Acari.TunMan do
   require Logger
   use GenServer
   alias Acari.SSLinkSup
-  alias Acari.Link
+  alias Acari.SSLink
   alias Acari.Iface
 
   def start_link(state) do
@@ -17,7 +17,7 @@ defmodule Acari.TunMan do
     Process.flag(:trap_exit, true)
 
     for name <- ["Link_A", "Link_B"] do
-      {:ok, pid} = SSLinkSup.start_link_worker(SSLinkSup, {Link, %{name: name}})
+      {:ok, pid} = SSLinkSup.start_link_worker(SSLinkSup, {SSLink, %{name: name}})
       true = Process.link(pid)
       true = :ets.insert_new(links, {name, pid, nil, %{}})
     end

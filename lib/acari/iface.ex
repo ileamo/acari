@@ -24,7 +24,7 @@ defmodule Acari.Iface do
     {:ok, ifsocket} = :tuncer.create(<<>>, [:tun, :no_pi, active: true])
     :tuncer.persist(ifsocket, false)
     name = :tuncer.devname(ifsocket)
-    {:ok, ifsender_pid} = Acari.IfaceSender.start_link(%{ifsocket: ifsocket})
+    {:ok, ifsender_pid} = Acari.IfaceSnd.start_link(%{ifsocket: ifsocket})
 
     with {_, 0} <-
            System.cmd(
@@ -113,7 +113,7 @@ defmodule Acari.Iface do
   end
 end
 
-defmodule Acari.IfaceSender do
+defmodule Acari.IfaceSnd do
   require Logger
   use GenServer
 
