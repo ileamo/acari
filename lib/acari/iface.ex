@@ -1,6 +1,6 @@
 defmodule Acari.Iface do
   require Logger
-  use GenServer
+  use GenServer, restart: :temporary
 
   @moduledoc """
   For IPv4 addresses, beam needs to have privileges to configure interfaces.
@@ -20,7 +20,7 @@ defmodule Acari.Iface do
   ## Callbacks
   @impl true
   def init(_params) do
-    Logger.debug("IFACE started")
+    IO.puts("IFACE started")
     {:ok, ifsocket} = :tuncer.create(<<>>, [:tun, :no_pi, active: true])
     :tuncer.persist(ifsocket, false)
     name = :tuncer.devname(ifsocket)

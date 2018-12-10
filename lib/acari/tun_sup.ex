@@ -2,7 +2,7 @@ defmodule Acari.TunSup do
   use Supervisor
 
   def start_link(arg) do
-    Supervisor.start_link(__MODULE__, arg, name: __MODULE__)
+    Supervisor.start_link(__MODULE__, arg)
   end
 
   @impl true
@@ -11,9 +11,8 @@ defmodule Acari.TunSup do
     :ssl.start()
     # List all child processes to be supervised
     children = [
-      Acari.Iface,
       Acari.SSLinkSup,
-      {Acari.TunMan, params}
+      {Acari.TunMan, params |> Map.put(:tun_sup_pid, self())}
     ]
 
     opts = [strategy: :one_for_all, name: Acari.Supervisor]

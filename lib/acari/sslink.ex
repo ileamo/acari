@@ -16,6 +16,7 @@ defmodule Acari.SSLink do
   @impl true
   def init(%{name: name, tun_man_pid: tun_man_pid})
       when is_binary(name) and is_pid(tun_man_pid) do
+    IO.puts("START SSLINK #{name}")
     {:ok, %State{name: name, tun_man_pid: tun_man_pid}, {:continue, :init}}
   end
 
