@@ -11,7 +11,6 @@ defmodule Acari.TunSup do
     :ssl.start()
     # List all child processes to be supervised
     children = [
-      Acari.SSLinkSup,
       {Acari.TunMan, params |> Map.put(:tun_sup_pid, self())}
     ]
 

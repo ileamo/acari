@@ -6,7 +6,7 @@ defmodule Acari.TunMan do
   alias Acari.Iface
 
   defmodule State do
-    defstruct [:tun_sup_pid, :iface_pid, :sslinks]
+    defstruct [:tun_sup_pid, :iface_pid, :sslink_sup_pid, :sslinks]
   end
 
   def start_link(params) do
@@ -23,13 +23,17 @@ defmodule Acari.TunMan do
 
   @impl true
   def handle_continue(:init, %{tun_sup_pid: tun_sup_pid} = state) do
-    sslinks = :ets.new(:sslinks, [:set, :protected, :named_table])
+    sslinks = :ets.new(:sslinks, [:set, :protected])
     Process.flag(:trap_exit, true)
 
     {:ok, iface_pid} = Supervisor.start_child(tun_sup_pid, Iface)
     Process.link(iface_pid)
 
-    {:noreply, %{state | sslinks: sslinks, iface_pid: iface_pid}, {:continue, :set_sslinks}}
+    {:ok, sslink_sup_pid} = Supervisor.start_child(tun_sup_pid, SSLinkSup)
+    Process.link(sslink_sup_pid)
+
+    {:noreply, %{state | sslinks: sslinks, iface_pid: iface_pid, sslink_sup_pid: sslink_sup_pid},
+     {:continue, :set_sslinks}}
   end
 
   def handle_continue(:set_sslinks, %{sslinks: sslinks} = state) do
@@ -59,6 +63,10 @@ defmodule Acari.TunMan do
     {:stop, {:iface_exit, reason}, state}
   end
 
+  def handle_info({:EXIT, pid, reason}, %State{sslink_sup_pid: pid} = state) do
+    {:stop, {:sslink_sup_exit, reason}, state}
+  end
+
   def handle_info({:EXIT, pid, _reason}, %State{sslinks: sslinks} = state) do
     [[name, params]] = :ets.match(sslinks, {:"$1", pid, :_, :"$2"})
     update_sslink(state, name, params)
@@ -66,10 +74,14 @@ defmodule Acari.TunMan do
   end
 
   # Private
-  defp update_sslink(%{sslinks: sslinks, iface_pid: iface_pid} = state, name, params) do
+  defp update_sslink(
+         %{sslinks: sslinks, iface_pid: iface_pid, sslink_sup_pid: sslink_sup_pid} = state,
+         name,
+         params
+       ) do
     {:ok, pid} =
-      SSLinkSup.start_link_worker(
-        SSLinkSup,
+      SSLinkSup.start_sslink(
+        sslink_sup_pid,
         {SSLink, %{name: name, tun_man_pid: self(), iface_pid: iface_pid}}
       )
 

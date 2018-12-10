@@ -71,14 +71,6 @@ defmodule Acari.SSLink do
     Logger.warn("SSL: unknown message: #{inspect(msg)}")
     {:noreply, state}
   end
-
-  # Client
-  def start_child(param) do
-    DynamicSupervisor.start_child(
-      Acari.SSLinkSup,
-      child_spec(param)
-    )
-  end
 end
 
 defmodule Acari.SSLinkSnd do
