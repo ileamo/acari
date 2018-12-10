@@ -24,7 +24,7 @@ defmodule Acari.Iface do
     {:ok, ifsocket} = :tuncer.create(<<>>, [:tun, :no_pi, active: true])
     :tuncer.persist(ifsocket, false)
     name = :tuncer.devname(ifsocket)
-    {:ok, ifsender_pid} = Acari.IfaceSnd.start_link(%{ifsocket: ifsocket})
+    {:ok, ifsnd_pid} = Acari.IfaceSnd.start_link(%{ifsocket: ifsocket})
 
     with {_, 0} <-
            System.cmd(
@@ -38,7 +38,7 @@ defmodule Acari.Iface do
       state = %{
         ifsocket: ifsocket,
         ifname: name,
-        ifsender_pid: ifsender_pid,
+        ifsnd_pid: ifsnd_pid,
         up: true
       }
 
@@ -57,8 +57,8 @@ defmodule Acari.Iface do
   end
 
   @impl true
-  def handle_call(:get_ifsender_pid, _from, %{ifsender_pid: ifsender_pid} = state) do
-    {:reply, ifsender_pid, state}
+  def handle_call(:get_ifsnd_pid, _from, %{ifsnd_pid: ifsnd_pid} = state) do
+    {:reply, ifsnd_pid, state}
   end
 
   @impl true
@@ -100,8 +100,8 @@ defmodule Acari.Iface do
     GenServer.cast(iface_pid, {:set_lisender_pid, lisender_pid})
   end
 
-  def get_ifsender_pid() do
-    GenServer.call(__MODULE__, :get_ifsender_pid)
+  def get_ifsnd_pid() do
+    GenServer.call(__MODULE__, :get_ifsnd_pid)
   end
 
   defp if_up(ifname), do: if_set_admstate(ifname, "up")

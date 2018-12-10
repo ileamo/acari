@@ -10,7 +10,7 @@ defmodule Acari.TunMan do
   end
 
   def start_link(params) do
-    GenServer.start_link(__MODULE__, params, name: __MODULE__)
+    GenServer.start_link(__MODULE__, params)
   end
 
   ## Callbacks
@@ -29,7 +29,8 @@ defmodule Acari.TunMan do
   end
 
   @impl true
-  def handle_cast({:set_link_sender_pid, name, pid}, %State{sslinks: sslinks} = state) do
+  def handle_cast({:set_sslink_snd_pid, name, pid}, %State{sslinks: sslinks} = state) do
+    IO.puts("CAST SENDER PID")
     true = :ets.update_element(sslinks, name, {3, pid})
     Iface.set_lisender_pid(Iface, pid)
     {:noreply, state}
@@ -50,7 +51,9 @@ defmodule Acari.TunMan do
 
   # Private
   defp update_sslink(sslinks, name, params) do
-    {:ok, pid} = SSLinkSup.start_link_worker(SSLinkSup, {SSLink, %{name: name}})
+    {:ok, pid} =
+      SSLinkSup.start_link_worker(SSLinkSup, {SSLink, %{name: name, tun_man_pid: self()}})
+
     true = Process.link(pid)
     true = :ets.insert(sslinks, {name, pid, nil, params})
   end
@@ -60,7 +63,7 @@ defmodule Acari.TunMan do
     GenServer.call(__MODULE__, :get_all_links)
   end
 
-  def set_link_sender_pid(name, pid) do
-    GenServer.cast(__MODULE__, {:set_link_sender_pid, name, pid})
+  def set_sslink_snd_pid(tun_pid, name, pid) do
+    GenServer.cast(tun_pid, {:set_sslink_snd_pid, name, pid})
   end
 end

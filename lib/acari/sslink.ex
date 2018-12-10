@@ -4,32 +4,30 @@ defmodule Acari.SSLink do
   alias Acari.Iface
   alias Acari.TunMan
 
-  def start_link(state) do
-    GenServer.start_link(__MODULE__, state)
+  defmodule State do
+    defstruct [:name, :pid, :tun_man_pid, :snd_pid, :ifsnd_pid, :sslsocket]
+  end
+
+  def start_link(args) do
+    GenServer.start_link(__MODULE__, args)
   end
 
   ## Callbacks
   @impl true
-  def init(state) do
-    Logger.debug("START LINK #{inspect(state)}")
-    {:ok, state, {:continue, :init}}
+  def init(%{name: name, tun_man_pid: tun_man_pid})
+      when is_binary(name) and is_pid(tun_man_pid) do
+    {:ok, %State{name: name, tun_man_pid: tun_man_pid}, {:continue, :init}}
   end
 
   @impl true
-  def handle_continue(:init, %{name: name} = state) do
+  def handle_continue(:init, %{name: name, tun_man_pid: tun_man_pid} = state) do
     sslsocket = connect(%{"host" => 'localhost', "port" => 7000})
-    {:ok, sender_pid} = Acari.SSLinkSnd.start_link(%{sslsocket: sslsocket})
-    ifsender_pid = Iface.get_ifsender_pid()
-    TunMan.set_link_sender_pid(name, sender_pid)
+    {:ok, snd_pid} = Acari.SSLinkSnd.start_link(%{sslsocket: sslsocket})
+    ifsnd_pid = Iface.get_ifsnd_pid()
+    TunMan.set_sslink_snd_pid(tun_man_pid, name, snd_pid)
 
     {:noreply,
-     state
-     |> Map.merge(%{
-       pid: self(),
-       sslsocket: sslsocket,
-       sender_pid: sender_pid,
-       ifsender_pid: ifsender_pid
-     })}
+     %{state | pid: self(), sslsocket: sslsocket, snd_pid: snd_pid, ifsnd_pid: ifsnd_pid}}
   end
 
   defp connect(%{"host" => host, "port" => port} = parms) do
@@ -50,9 +48,9 @@ defmodule Acari.SSLink do
   end
 
   @impl true
-  def handle_info({:ssl, _sslsocket, data}, state = %{ifsender_pid: ifsender_pid}) do
+  def handle_info({:ssl, _sslsocket, data}, state = %{ifsnd_pid: ifsnd_pid}) do
     Logger.debug("SSL recv #{length(data)} bytes")
-    GenServer.cast(ifsender_pid, {:send, data})
+    GenServer.cast(ifsnd_pid, {:send, data})
 
     {:noreply, state}
   end
