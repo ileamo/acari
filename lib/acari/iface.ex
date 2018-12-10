@@ -14,7 +14,7 @@ defmodule Acari.Iface do
   """
 
   def start_link(params) do
-    GenServer.start_link(__MODULE__, params, name: __MODULE__)
+    GenServer.start_link(__MODULE__, params)
   end
 
   ## Callbacks
@@ -100,8 +100,8 @@ defmodule Acari.Iface do
     GenServer.cast(iface_pid, {:set_lisender_pid, lisender_pid})
   end
 
-  def get_ifsnd_pid() do
-    GenServer.call(__MODULE__, :get_ifsnd_pid)
+  def get_ifsnd_pid(iface_pid) do
+    GenServer.call(iface_pid, :get_ifsnd_pid)
   end
 
   defp if_up(ifname), do: if_set_admstate(ifname, "up")

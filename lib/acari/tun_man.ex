@@ -23,17 +23,21 @@ defmodule Acari.TunMan do
 
   @impl true
   def handle_continue(:init, %{tun_sup_pid: tun_sup_pid} = state) do
-    {:ok, iface_pid} = Supervisor.start_child(tun_sup_pid, Iface)
-    Process.link(iface_pid)
-
     sslinks = :ets.new(:sslinks, [:set, :protected, :named_table])
     Process.flag(:trap_exit, true)
 
+    {:ok, iface_pid} = Supervisor.start_child(tun_sup_pid, Iface)
+    Process.link(iface_pid)
+
+    {:noreply, %{state | sslinks: sslinks, iface_pid: iface_pid}, {:continue, :set_sslinks}}
+  end
+
+  def handle_continue(:set_sslinks, %{sslinks: sslinks} = state) do
     for name <- ["Link_A", "Link_B"] do
-      update_sslink(sslinks, name, %{})
+      update_sslink(state, name, %{})
     end
 
-    {:noreply, %{state | sslinks: sslinks, iface_pid: iface_pid}}
+    {:noreply, state}
   end
 
   @impl true
@@ -57,14 +61,17 @@ defmodule Acari.TunMan do
 
   def handle_info({:EXIT, pid, _reason}, %State{sslinks: sslinks} = state) do
     [[name, params]] = :ets.match(sslinks, {:"$1", pid, :_, :"$2"})
-    update_sslink(sslinks, name, params)
+    update_sslink(state, name, params)
     {:noreply, state}
   end
 
   # Private
-  defp update_sslink(sslinks, name, params) do
+  defp update_sslink(%{sslinks: sslinks, iface_pid: iface_pid} = state, name, params) do
     {:ok, pid} =
-      SSLinkSup.start_link_worker(SSLinkSup, {SSLink, %{name: name, tun_man_pid: self()}})
+      SSLinkSup.start_link_worker(
+        SSLinkSup,
+        {SSLink, %{name: name, tun_man_pid: self(), iface_pid: iface_pid}}
+      )
 
     true = Process.link(pid)
     true = :ets.insert(sslinks, {name, pid, nil, params})
