@@ -10,7 +10,9 @@ defmodule Acari.TunCreator do
   def init(state) do
     IO.puts("TUN_CREATOR")
 
-    # {:ok, _} = Acari.start_tun()
+    :ok = Acari.start_tun("tun")
+    :ok = Acari.add_link("tun", %{name: "link"})
+
     # {:ok, _} = Acari.start_tun()
 
     {:ok, state}

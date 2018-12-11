@@ -33,16 +33,7 @@ defmodule Acari.TunMan do
     {:ok, sslink_sup_pid} = Supervisor.start_child(tun_sup_pid, SSLinkSup)
     Process.link(sslink_sup_pid)
 
-    {:noreply, %{state | sslinks: sslinks, iface_pid: iface_pid, sslink_sup_pid: sslink_sup_pid},
-     {:continue, :set_sslinks}}
-  end
-
-  def handle_continue(:set_sslinks, %{sslinks: sslinks} = state) do
-    for name <- ["Link_A", "Link_B"] do
-      update_sslink(state, name, %{})
-    end
-
-    {:noreply, state}
+    {:noreply, %{state | sslinks: sslinks, iface_pid: iface_pid, sslink_sup_pid: sslink_sup_pid}}
   end
 
   @impl true
@@ -54,9 +45,45 @@ defmodule Acari.TunMan do
   end
 
   @impl true
+  def handle_call({:add_link, %{name: name} = link}, _from, %{sslinks: sslinks} = state)
+      when is_binary(name) do
+    case :ets.member(sslinks, name) do
+      true ->
+        {:reply, {:error, "Already exist"}, state}
+
+      _ ->
+        update_sslink(state, name, link)
+        {:reply, :ok, state}
+    end
+  end
+
+  def handle_call({:add_link, _}, _from, state) do
+    {:reply, {:error, "Link name must be string"}, state}
+  end
+
+  def handle_call(
+        {:del_link, name},
+        _from,
+        %{sslinks: sslinks, sslink_sup_pid: sslink_sup_pid} = state
+      ) do
+    case :ets.lookup(sslinks, name) do
+      [] ->
+        {:reply, {:error, "No link"}, state}
+
+      [{_, pid, _, _}] ->
+        :ets.delete(sslinks, name)
+        DynamicSupervisor.terminate_child(sslink_sup_pid, pid)
+        {:reply, :ok, state}
+    end
+  end
+
   def handle_call(:get_all_links, _from, %State{sslinks: sslinks} = state) do
     res = :ets.match(sslinks, {:"$1", :"$2", :"$3", :"$4"})
     {:reply, res, state}
+  end
+
+  def handle_call(request, _from, state) do
+    {:reply, {:error, "Bad request #{inspect(request)}"}, state}
   end
 
   @impl true
@@ -69,8 +96,14 @@ defmodule Acari.TunMan do
   end
 
   def handle_info({:EXIT, pid, _reason}, %State{sslinks: sslinks} = state) do
-    [[name, params]] = :ets.match(sslinks, {:"$1", pid, :_, :"$2"})
-    update_sslink(state, name, params)
+    case :ets.match(sslinks, {:"$1", pid, :_, :"$2"}) do
+      [[name, params]] ->
+        update_sslink(state, name, params)
+
+      [] ->
+        nil
+    end
+
     {:noreply, state}
   end
 
@@ -81,7 +114,7 @@ defmodule Acari.TunMan do
          params
        ) do
     {:ok, pid} =
-      SSLinkSup.start_sslink(
+      DynamicSupervisor.start_child(
         sslink_sup_pid,
         {SSLink, %{name: name, tun_man_pid: self(), iface_pid: iface_pid}}
       )
@@ -95,6 +128,14 @@ defmodule Acari.TunMan do
   end
 
   # Client
+  def add_link(tun_name, link) do
+    GenServer.call(via(tun_name), {:add_link, link})
+  end
+
+  def del_link(tun_name, link_name) do
+    GenServer.call(via(tun_name), {:del_link, link_name})
+  end
+
   def get_all_links(tun_name) do
     GenServer.call(via(tun_name), :get_all_links)
   end

@@ -1,4 +1,6 @@
 defmodule Acari do
   defdelegate start_tun(name), to: Acari.TunSup
   defdelegate stop_tun(name), to: Acari.TunSup
+  defdelegate add_link(tun_name, link), to: Acari.TunMan
+  defdelegate del_link(tun_name, link), to: Acari.TunMan
 end
