@@ -21,8 +21,9 @@ defmodule AcariServer.Hs do
   end
 
   @impl true
-  def handle_info({:ssl, _sslsocket, data}, state) do
+  def handle_info({:ssl, sslsocket, data}, state) do
     Logger.debug("HS recv #{inspect(data)}")
+    :ssl.send(sslsocket, "ACK #{data}")
     {:stop, :shutdown, state}
   end
 

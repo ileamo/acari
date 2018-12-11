@@ -9,6 +9,7 @@ defmodule Acari.SSLink do
       :name,
       :connector,
       :pid,
+      :tun_name,
       :tun_man_pid,
       :snd_pid,
       :iface_pid,
@@ -57,7 +58,8 @@ defmodule Acari.SSLink do
     {:noreply, state}
   end
 
-  def handle_info({:ssl_closed, _sslsocket}, state) do
+  def handle_info({:ssl_closed, _sslsocket}, %{name: name, tun_name: tun_name} = state) do
+    Logger.info("#{tun_name}: #{name}: Closed")
     {:stop, :shutdown, state}
   end
 

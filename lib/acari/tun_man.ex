@@ -19,7 +19,7 @@ defmodule Acari.TunMan do
   def init(%{tun_sup_pid: tun_sup_pid} = params) when is_pid(tun_sup_pid) do
     IO.puts("START TUN_MAN")
     IO.inspect(params)
-    {:ok, %State{tun_sup_pid: tun_sup_pid}, {:continue, :init}}
+    {:ok, %State{} |> Map.merge(params), {:continue, :init}}
   end
 
   @impl true
@@ -37,10 +37,13 @@ defmodule Acari.TunMan do
   end
 
   @impl true
-  def handle_cast({:set_sslink_snd_pid, name, pid}, %State{sslinks: sslinks} = state) do
+  def handle_cast(
+        {:set_sslink_snd_pid, name, pid},
+        %State{sslinks: sslinks, iface_pid: iface_pid} = state
+      ) do
     IO.puts("CAST SENDER PID")
     true = :ets.update_element(sslinks, name, {3, pid})
-    Iface.set_lisender_pid(Iface, pid)
+    Iface.set_lisender_pid(iface_pid, pid)
     {:noreply, state}
   end
 
@@ -109,14 +112,26 @@ defmodule Acari.TunMan do
 
   # Private
   defp update_sslink(
-         %{sslinks: sslinks, iface_pid: iface_pid, sslink_sup_pid: sslink_sup_pid},
+         %{
+           tun_name: tun_name,
+           sslinks: sslinks,
+           iface_pid: iface_pid,
+           sslink_sup_pid: sslink_sup_pid
+         },
          name,
          connector
        ) do
     {:ok, pid} =
       DynamicSupervisor.start_child(
         sslink_sup_pid,
-        {SSLink, %{name: name, connector: connector, tun_man_pid: self(), iface_pid: iface_pid}}
+        {SSLink,
+         %{
+           name: name,
+           connector: connector,
+           tun_name: tun_name,
+           tun_man_pid: self(),
+           iface_pid: iface_pid
+         }}
       )
 
     true = Process.link(pid)

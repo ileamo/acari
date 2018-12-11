@@ -21,6 +21,7 @@ defmodule AcariClient.TunCreator do
   defp connect(host, port, params \\ []) do
     case :ssl.connect(to_charlist(host), port, [packet: 2], 5000) do
       {:ok, sslsocket} ->
+        :ssl.send(sslsocket, "NSG1700_1812000999")
         sslsocket
 
       {:error, reason} ->
