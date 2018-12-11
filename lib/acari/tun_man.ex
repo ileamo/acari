@@ -45,19 +45,19 @@ defmodule Acari.TunMan do
   end
 
   @impl true
-  def handle_call({:add_link, %{name: name} = link}, _from, %{sslinks: sslinks} = state)
+  def handle_call({:add_link, name, connector}, _from, %{sslinks: sslinks} = state)
       when is_binary(name) do
     case :ets.member(sslinks, name) do
       true ->
         {:reply, {:error, "Already exist"}, state}
 
       _ ->
-        update_sslink(state, name, link)
+        update_sslink(state, name, connector)
         {:reply, :ok, state}
     end
   end
 
-  def handle_call({:add_link, _}, _from, state) do
+  def handle_call({:add_link, _, _}, _from, state) do
     {:reply, {:error, "Link name must be string"}, state}
   end
 
@@ -78,7 +78,7 @@ defmodule Acari.TunMan do
   end
 
   def handle_call(:get_all_links, _from, %State{sslinks: sslinks} = state) do
-    res = :ets.match(sslinks, {:"$1", :"$2", :"$3", :"$4"})
+    res = :ets.match_object(sslinks, {:_, :_, :_, :_})
     {:reply, res, state}
   end
 
@@ -97,8 +97,8 @@ defmodule Acari.TunMan do
 
   def handle_info({:EXIT, pid, _reason}, %State{sslinks: sslinks} = state) do
     case :ets.match(sslinks, {:"$1", pid, :_, :"$2"}) do
-      [[name, params]] ->
-        update_sslink(state, name, params)
+      [[name, connector]] ->
+        update_sslink(state, name, connector)
 
       [] ->
         nil
@@ -111,16 +111,16 @@ defmodule Acari.TunMan do
   defp update_sslink(
          %{sslinks: sslinks, iface_pid: iface_pid, sslink_sup_pid: sslink_sup_pid},
          name,
-         params
+         connector
        ) do
     {:ok, pid} =
       DynamicSupervisor.start_child(
         sslink_sup_pid,
-        {SSLink, %{name: name, tun_man_pid: self(), iface_pid: iface_pid}}
+        {SSLink, %{name: name, connector: connector, tun_man_pid: self(), iface_pid: iface_pid}}
       )
 
     true = Process.link(pid)
-    true = :ets.insert(sslinks, {name, pid, nil, params})
+    true = :ets.insert(sslinks, {name, pid, nil, connector})
   end
 
   defp via(name) do
@@ -128,8 +128,8 @@ defmodule Acari.TunMan do
   end
 
   # Client
-  def add_link(tun_name, link) do
-    GenServer.call(via(tun_name), {:add_link, link})
+  def add_link(tun_name, link_name, connector) do
+    GenServer.call(via(tun_name), {:add_link, link_name, connector})
   end
 
   def del_link(tun_name, link_name) do

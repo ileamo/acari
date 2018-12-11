@@ -5,7 +5,16 @@ defmodule Acari.SSLink do
   alias Acari.TunMan
 
   defmodule State do
-    defstruct [:name, :pid, :tun_man_pid, :snd_pid, :iface_pid, :ifsnd_pid, :sslsocket]
+    defstruct [
+      :name,
+      :connector,
+      :pid,
+      :tun_man_pid,
+      :snd_pid,
+      :iface_pid,
+      :ifsnd_pid,
+      :sslsocket
+    ]
   end
 
   def start_link(args) do
@@ -14,36 +23,25 @@ defmodule Acari.SSLink do
 
   ## Callbacks
   @impl true
-  def init(%{name: name, tun_man_pid: tun_man_pid, iface_pid: iface_pid})
-      when is_binary(name) and is_pid(tun_man_pid) do
+  def init(%{name: name, tun_man_pid: tun_man_pid, iface_pid: iface_pid} = state)
+      when is_binary(name) and is_pid(tun_man_pid) and is_pid(iface_pid) do
     IO.puts("START SSLINK #{name}")
-    {:ok, %State{name: name, tun_man_pid: tun_man_pid, iface_pid: iface_pid}, {:continue, :init}}
+    {:ok, %State{} |> Map.merge(state), {:continue, :init}}
   end
 
   @impl true
   def handle_continue(
         :init,
-        %{name: name, tun_man_pid: tun_man_pid, iface_pid: iface_pid} = state
+        %{name: name, connector: connector, tun_man_pid: tun_man_pid, iface_pid: iface_pid} =
+          state
       ) do
-    sslsocket = connect(%{"host" => 'localhost', "port" => 7000})
+    sslsocket = connector.()
     {:ok, snd_pid} = Acari.SSLinkSnd.start_link(%{sslsocket: sslsocket})
     ifsnd_pid = Iface.get_ifsnd_pid(iface_pid)
     TunMan.set_sslink_snd_pid(tun_man_pid, name, snd_pid)
 
     {:noreply,
      %{state | pid: self(), sslsocket: sslsocket, snd_pid: snd_pid, ifsnd_pid: ifsnd_pid}}
-  end
-
-  defp connect(%{"host" => host, "port" => port} = parms) do
-    case :ssl.connect(to_charlist(host), port, [packet: 2], 5000) do
-      {:ok, sslsocket} ->
-        sslsocket
-
-      {:error, reason} ->
-        Logger.warn("Can't connect #{host}:#{port}: #{inspect(reason)}")
-        Process.sleep(10_000)
-        connect(parms)
-    end
   end
 
   @impl true
