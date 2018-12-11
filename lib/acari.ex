@@ -1,18 +1,4 @@
 defmodule Acari do
-  @moduledoc """
-  Documentation for Acari.
-  """
-
-  @doc """
-  Hello world.
-
-  ## Examples
-
-      iex> Acari.hello()
-      :world
-
-  """
-  def hello do
-    :world
-  end
+  defdelegate start_tun(name), to: Acari.TunSup
+  defdelegate stop_tun(name), to: Acari.TunSup
 end

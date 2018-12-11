@@ -10,6 +10,8 @@ defmodule Acari.Application do
     :ssl.start()
     # List all child processes to be supervised
     children = [
+      {Registry, keys: :unique, name: Registry.TunMan},
+      {Registry, keys: :unique, name: Registry.TunSup},
       Acari.Config,
       Acari.TunsSup,
       Acari.TunCreator

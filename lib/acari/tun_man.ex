@@ -6,11 +6,12 @@ defmodule Acari.TunMan do
   alias Acari.Iface
 
   defmodule State do
-    defstruct [:tun_sup_pid, :iface_pid, :sslink_sup_pid, :sslinks]
+    defstruct [:tun_name, :tun_sup_pid, :iface_pid, :sslink_sup_pid, :sslinks]
   end
 
   def start_link(params) do
-    GenServer.start_link(__MODULE__, params)
+    tun_name = Map.fetch!(params, :tun_name)
+    GenServer.start_link(__MODULE__, params, name: via(tun_name))
   end
 
   ## Callbacks
@@ -75,7 +76,7 @@ defmodule Acari.TunMan do
 
   # Private
   defp update_sslink(
-         %{sslinks: sslinks, iface_pid: iface_pid, sslink_sup_pid: sslink_sup_pid} = state,
+         %{sslinks: sslinks, iface_pid: iface_pid, sslink_sup_pid: sslink_sup_pid},
          name,
          params
        ) do
@@ -89,9 +90,13 @@ defmodule Acari.TunMan do
     true = :ets.insert(sslinks, {name, pid, nil, params})
   end
 
+  defp via(name) do
+    {:via, Registry, {Registry.TunMan, name}}
+  end
+
   # Client
-  def get_all_links() do
-    GenServer.call(__MODULE__, :get_all_links)
+  def get_all_links(tun_name) do
+    GenServer.call(via(tun_name), :get_all_links)
   end
 
   def set_sslink_snd_pid(tun_pid, name, pid) do
