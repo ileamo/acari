@@ -12,6 +12,7 @@ defmodule Acari.Application do
     children = [
       AcariClient.Config,
       Acari.Sup,
+      AcariServer.Sup,
       AcariClient.TunCreator
     ]
 
