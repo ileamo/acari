@@ -1,4 +1,4 @@
-defmodule Acari.Config do
+defmodule AcariClient.Config do
   use Agent
 
   def start_link(_) do

@@ -1,4 +1,4 @@
-defmodule Acari.TunCreator do
+defmodule AcariClient.TunCreator do
   use GenServer
   require Logger
 
