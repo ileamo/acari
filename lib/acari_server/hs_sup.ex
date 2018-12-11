@@ -1,4 +1,4 @@
-defmodule Acari.TunsSup do
+defmodule AcariServer.HsSup do
   use DynamicSupervisor
 
   def start_link(arg) do
@@ -7,7 +7,7 @@ defmodule Acari.TunsSup do
 
   @impl true
   def init(_arg) do
-    IO.puts("TUNS SUP")
+    IO.puts("HS SUP")
     DynamicSupervisor.init(strategy: :one_for_one)
   end
 end

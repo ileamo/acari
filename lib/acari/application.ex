@@ -10,14 +10,15 @@ defmodule Acari.Application do
     :ssl.start()
     # List all child processes to be supervised
     children = [
-      Acari.Config,
-      Acari.TunsSup,
-      Acari.TunCreator
+      AcariClient.Config,
+      Acari.Sup,
+      AcariServer.Sup,
+      AcariClient.TunCreator
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
-    opts = [strategy: :one_for_one, name: Acari.Supervisor]
+    opts = [strategy: :one_for_all, name: Acari.Supervisor]
     Supervisor.start_link(children, opts)
   end
 end
