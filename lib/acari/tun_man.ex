@@ -55,8 +55,8 @@ defmodule Acari.TunMan do
         {:reply, {:error, "Already exist"}, state}
 
       _ ->
-        update_sslink(state, name, connector)
-        {:reply, :ok, state}
+        pid = update_sslink(state, name, connector)
+        {:reply, {:ok, pid}, state}
     end
   end
 
@@ -157,6 +157,8 @@ defmodule Acari.TunMan do
            restart: if(connector.(:restart), do: :os.system_time(:second), else: 0)
          }}
       )
+
+    pid
   end
 
   defp via(name) do

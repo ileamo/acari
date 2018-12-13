@@ -13,7 +13,7 @@ defmodule AcariClient.TunCreator do
 
     :ok = Acari.start_tun("tun")
 
-    :ok =
+    {:ok, _pid} =
       Acari.add_link("tun", "link", fn
         :connect -> connect("localhost", 7000)
         :restart -> true
