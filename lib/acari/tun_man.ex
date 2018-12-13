@@ -100,8 +100,8 @@ defmodule Acari.TunMan do
 
   def handle_info({:EXIT, pid, _reason}, %State{sslinks: sslinks} = state) do
     case :ets.match(sslinks, {:"$1", pid, :_, :"$2"}) do
-      [[_name, %{restart: restart}]] when restart == 0 ->
-        nil
+      [[name, %{restart: restart}]] when restart == 0 ->
+        :ets.delete(sslinks, name)
 
       [[name, %{connector: connector, restart: timestamp}]] ->
         if((delta = :os.system_time(:second) - timestamp) >= 10) do

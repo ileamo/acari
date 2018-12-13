@@ -24,21 +24,25 @@ defmodule AcariServer.Hs do
   def handle_info({:ssl, sslsocket, frame}, state) do
     IO.inspect(frame)
 
-    case :erlang.list_to_binary(frame) do
-      <<1::1, _val::15, id::binary>> ->
-        Logger.info("Connect from #{id}")
-        :ok = Acari.start_tun(id)
+    with <<1::1, _val::15, id::binary>> <- :erlang.list_to_binary(frame),
+         Logger.info("Connect from #{id}"),
+         :ok <-
+           (case Acari.start_tun(id) do
+              :ok -> :ok
+              {:error, {:already_started, _}} -> :ok
+            end),
+         {:ok, pid} <-
+           Acari.add_link(id, "link", fn
+             :connect -> sslsocket
+             :restart -> false
+           end) do
+      :ssl.controlling_process(sslsocket, pid)
+    else
+      frame when is_binary(frame) ->
+        Logger.warn("Bad handshake packet")
 
-        {:ok, pid} =
-          Acari.add_link(id, "link", fn
-            :connect -> sslsocket
-            :restart -> false
-          end)
-
-        :ssl.controlling_process(sslsocket, pid)
-
-      _ ->
-        Logger.warn("Bad  connection id")
+      res ->
+        Logger.error("Can't accept connection #{inspect(res)}")
     end
 
     {:stop, :shutdown, state}
