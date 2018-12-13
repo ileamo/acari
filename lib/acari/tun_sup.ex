@@ -9,7 +9,6 @@ defmodule Acari.TunSup do
   @impl true
   def init(params) do
     IO.puts("TUN_SUP")
-    :ssl.start()
     # List all child processes to be supervised
     children = [
       {Acari.TunMan, params |> Map.put(:tun_sup_pid, self())}
