@@ -103,8 +103,12 @@ defmodule Acari.TunMan do
       [[_name, %{restart: restart}]] when restart == 0 ->
         nil
 
-      [[name, %{connector: connector}]] ->
-        update_sslink(state, name, connector)
+      [[name, %{connector: connector, restart: timestamp}]] ->
+        if((delta = :os.system_time(:second) - timestamp) >= 10) do
+          update_sslink(state, name, connector)
+        else
+          Process.send_after(self(), {:EXIT, pid, :restart}, (10 - delta) * 1000)
+        end
 
       [] ->
         nil
