@@ -13,25 +13,31 @@ defmodule AcariClient.TunCreator do
 
     :ok = Acari.start_tun("tun")
 
+    link = "m1"
+    {:ok, request} = Poison.encode(%{id: "nsg1700_1812000999", link: link})
+
     {:ok, _pid} =
-      Acari.add_link("tun", "link", fn
-        :connect -> connect("localhost", 7000)
-        :restart -> true
+      Acari.add_link("tun", link, fn
+        :connect ->
+          connect(%{host: "localhost", port: 7000}, request)
+
+        :restart ->
+          true
       end)
 
     {:ok, state}
   end
 
-  defp connect(host, port, params \\ []) do
+  defp connect(%{host: host, port: port} = params, request) do
     case :ssl.connect(to_charlist(host), port, [packet: 2], 5000) do
       {:ok, sslsocket} ->
-        :ssl.send(sslsocket, <<1::1, 0::15>> <> "NSG1700_1812000999")
+        :ssl.send(sslsocket, <<1::1, 0::15>> <> request)
         sslsocket
 
       {:error, reason} ->
         Logger.warn("Can't connect #{host}:#{port}: #{inspect(reason)}")
         Process.sleep(10_000)
-        connect(host, port, params)
+        connect(params, request)
     end
   end
 end
