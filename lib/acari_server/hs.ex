@@ -21,9 +21,14 @@ defmodule AcariServer.Hs do
   end
 
   @impl true
-  def handle_info({:ssl, sslsocket, data}, state) do
-    Logger.debug("HS recv #{inspect(data)}")
-    :ssl.send(sslsocket, "ACK #{data}")
+  def handle_info({:ssl, _sslsocket, frame}, state) do
+    IO.inspect(frame)
+
+    case :erlang.list_to_binary(frame) do
+      <<1::1, _val::15, id::binary>> -> Logger.info("Connect from #{id}")
+      _ -> Logger.warn("Bad  connection id")
+    end
+
     {:stop, :shutdown, state}
   end
 

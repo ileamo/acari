@@ -52,8 +52,8 @@ defmodule Acari.Iface do
   end
 
   @impl true
-  def handle_cast({:set_lisender_pid, lisender_pid}, state) do
-    {:noreply, state |> Map.put(:lisender_pid, lisender_pid)}
+  def handle_cast({:set_sslink_snd_pid, sslink_snd_pid}, state) do
+    {:noreply, state |> Map.put(:sslink_snd_pid, sslink_snd_pid)}
   end
 
   @impl true
@@ -64,17 +64,17 @@ defmodule Acari.Iface do
   @impl true
   def handle_info(
         {:tuntap, _pid, packet},
-        state = %{lisender_pid: lisender_pid}
+        state = %{sslink_snd_pid: sslink_snd_pid}
       )
-      when is_pid(lisender_pid) do
-    case Process.alive?(lisender_pid) do
+      when is_pid(sslink_snd_pid) do
+    case Process.alive?(sslink_snd_pid) do
       true ->
         Logger.debug("IFACE receive #{byte_size(packet)}")
-        GenServer.cast(lisender_pid, {:send, packet})
+        Acari.SSLinkSnd.send(sslink_snd_pid, packet)
         {:noreply, state}
 
       _ ->
-        {:noreply, %{state | lisender_pid: nil}}
+        {:noreply, %{state | sslink_snd_pid: nil}}
     end
   end
 
@@ -96,8 +96,8 @@ defmodule Acari.Iface do
   end
 
   # client
-  def set_lisender_pid(iface_pid, lisender_pid) do
-    GenServer.cast(iface_pid, {:set_lisender_pid, lisender_pid})
+  def set_sslink_snd_pid(iface_pid, sslink_snd_pid) do
+    GenServer.cast(iface_pid, {:set_sslink_snd_pid, sslink_snd_pid})
   end
 
   def get_ifsnd_pid(iface_pid) do
@@ -129,8 +129,14 @@ defmodule Acari.IfaceSnd do
 
   @impl true
   def handle_cast({:send, packet}, state = %{ifsocket: ifsocket}) do
-    :tuncer.send(ifsocket, to_string(packet))
-    Logger.debug("IFACE send #{length(packet)} bytes")
+    :tuncer.send(ifsocket, packet)
+    Logger.debug("IFACE send #{byte_size(packet)} bytes")
     {:noreply, state}
+  end
+
+  # Client
+
+  def send(ifsnd_pid, packet) do
+    GenServer.cast(ifsnd_pid, {:send, packet})
   end
 end

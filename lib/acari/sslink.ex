@@ -36,7 +36,7 @@ defmodule Acari.SSLink do
         %{name: name, connector: connector, tun_man_pid: tun_man_pid, iface_pid: iface_pid} =
           state
       ) do
-    sslsocket = connector.()
+    sslsocket = connector.(:connect)
     {:ok, snd_pid} = Acari.SSLinkSnd.start_link(%{sslsocket: sslsocket})
     ifsnd_pid = Iface.get_ifsnd_pid(iface_pid)
     TunMan.set_sslink_snd_pid(tun_man_pid, name, snd_pid)
@@ -51,9 +51,11 @@ defmodule Acari.SSLink do
   end
 
   @impl true
-  def handle_info({:ssl, _sslsocket, data}, state = %{ifsnd_pid: ifsnd_pid}) do
-    Logger.debug("SSL recv #{length(data)} bytes")
-    GenServer.cast(ifsnd_pid, {:send, data})
+  def handle_info({:ssl, _sslsocket, frame}, state = %{ifsnd_pid: ifsnd_pid}) do
+    case parse(:erlang.list_to_binary(frame)) do
+      :ok -> :ok
+      packet -> Acari.IfaceSnd.send(ifsnd_pid, packet)
+    end
 
     {:noreply, state}
   end
@@ -70,6 +72,17 @@ defmodule Acari.SSLink do
   def handle_info(msg, state) do
     Logger.warn("SSL: unknown message: #{inspect(msg)}")
     {:noreply, state}
+  end
+
+  # Private
+
+  defp parse(frame) do
+    <<com::1, _val::15, packet::binary>> = frame
+
+    case com do
+      0 -> packet
+      1 -> :ok
+    end
   end
 end
 
@@ -104,5 +117,12 @@ defmodule Acari.SSLinkSnd do
   def handle_info(msg, state) do
     Logger.warn("SSL SENDER info: #{inspect(msg)}")
     {:noreply, state}
+  end
+
+  # Client
+
+  def send(sslink_snd_pid, packet, command \\ false) do
+    frame = <<0::16>> <> packet
+    GenServer.cast(sslink_snd_pid, {:send, frame})
   end
 end

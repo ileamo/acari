@@ -43,7 +43,7 @@ defmodule Acari.TunMan do
       ) do
     IO.puts("CAST SENDER PID")
     true = :ets.update_element(sslinks, name, {3, pid})
-    Iface.set_lisender_pid(iface_pid, pid)
+    Iface.set_sslink_snd_pid(iface_pid, pid)
     {:noreply, state}
   end
 
@@ -100,7 +100,10 @@ defmodule Acari.TunMan do
 
   def handle_info({:EXIT, pid, _reason}, %State{sslinks: sslinks} = state) do
     case :ets.match(sslinks, {:"$1", pid, :_, :"$2"}) do
-      [[name, connector]] ->
+      [[_name, %{restart: restart}]] when restart == 0 ->
+        nil
+
+      [[name, %{connector: connector}]] ->
         update_sslink(state, name, connector)
 
       [] ->
@@ -108,6 +111,11 @@ defmodule Acari.TunMan do
     end
 
     {:noreply, state}
+  end
+
+  def handle_info(mes, state) do
+    Logger.warn("Unexpected info message: #{inspect(mes)}")
+    {:noreplay, state}
   end
 
   # Private
@@ -135,7 +143,16 @@ defmodule Acari.TunMan do
       )
 
     true = Process.link(pid)
-    true = :ets.insert(sslinks, {name, pid, nil, connector})
+
+    true =
+      :ets.insert(
+        sslinks,
+        {name, pid, nil,
+         %{
+           connector: connector,
+           restart: if(connector.(:restart), do: :os.system_time(:second), else: 0)
+         }}
+      )
   end
 
   defp via(name) do
