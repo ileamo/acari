@@ -13,7 +13,21 @@ defmodule AcariClient.TunCreator do
 
     :ok = Acari.start_tun("tun")
 
+    # start link M1
     link = "m1"
+    {:ok, request} = Poison.encode(%{id: "nsg1700_1812000999", link: link})
+
+    {:ok, _pid} =
+      Acari.add_link("tun", link, fn
+        :connect ->
+          connect(%{host: "localhost", port: 7000}, request)
+
+        :restart ->
+          true
+      end)
+
+    # start link M1
+    link = "m2"
     {:ok, request} = Poison.encode(%{id: "nsg1700_1812000999", link: link})
 
     {:ok, _pid} =
