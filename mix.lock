@@ -1,4 +1,6 @@
 %{
+  "artificery": {:hex, :artificery, "0.2.6", "f602909757263f7897130cbd006b0e40514a541b148d366ad65b89236b93497a", [:mix], [], "hexpm"},
+  "distillery": {:hex, :distillery, "2.0.12", "6e78fe042df82610ac3fa50bd7d2d8190ad287d120d3cd1682d83a44e8b34dfb", [:mix], [{:artificery, "~> 0.2", [hex: :artificery, repo: "hexpm", optional: false]}], "hexpm"},
   "poison": {:hex, :poison, "4.0.1", "bcb755a16fac91cad79bfe9fc3585bb07b9331e50cfe3420a24bcc2d735709ae", [:mix], [], "hexpm"},
   "procket": {:git, "git://github.com/msantos/procket.git", "fd2c23f07e6950f3019bfafa28d15e66b310f402", [branch: "master"]},
   "tunctl": {:git, "https://github.com/msantos/tunctl.git", "8e8eb631ece264d3ca16334d45ffa5c72ce9dcda", []},

@@ -1,0 +1,6 @@
+#! /usr/bin/env sh
+rm -r _build/prod
+CROSSCOMPILE="" ERLANG_ARCH=32 CC=/opt/nsgdevkit-2017-Q2/usr/bin/arm-nsg_rt-linux-gnueabi-gcc MIX_ENV=prod mix release --env=prod
+cd _build/prod/rel/
+rm acari/releases/0.1.0/acari.tar.gz
+tar -czf acari.tar.gz acari
