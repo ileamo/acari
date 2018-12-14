@@ -22,9 +22,9 @@ defmodule AcariServer.Hs do
 
   @impl true
   def handle_info({:ssl, sslsocket, frame}, state) do
-    IO.inspect(frame)
-
-    with <<1::1, _val::15, id::binary>> <- :erlang.list_to_binary(frame),
+    with <<1::1, _val::15, json::binary>> <- :erlang.list_to_binary(frame),
+         {:ok, %{"id" => id, "link" => link}} when is_binary(id) and is_binary(link) <-
+           Poison.decode(json),
          Logger.info("Connect from #{id}"),
          :ok <-
            (case Acari.start_tun(id) do
@@ -32,7 +32,7 @@ defmodule AcariServer.Hs do
               {:error, {:already_started, _}} -> :ok
             end),
          {:ok, pid} <-
-           Acari.add_link(id, "link", fn
+           Acari.add_link(id, link, fn
              :connect -> sslsocket
              :restart -> false
            end) do
