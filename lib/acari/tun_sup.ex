@@ -3,7 +3,7 @@ defmodule Acari.TunSup do
 
   def start_link(params) do
     tun_name = Map.fetch!(params, :tun_name)
-    Supervisor.start_link(__MODULE__, params, name: via(tun_name))
+    Supervisor.start_link(__MODULE__, params, name: {:via, Registry, {Registry.TunSup, tun_name}})
   end
 
   @impl true
@@ -16,10 +16,5 @@ defmodule Acari.TunSup do
 
     opts = [strategy: :one_for_all, name: Acari.Supervisor]
     Supervisor.init(children, opts)
-  end
-
-  # Private
-  defp via(name) do
-    {:via, Registry, {Registry.TunSup, name}}
   end
 end

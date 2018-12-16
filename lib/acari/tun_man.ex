@@ -6,7 +6,7 @@ defmodule Acari.TunMan do
   alias Acari.Iface
 
   defmodule State do
-    defstruct [:tun_name, :tun_sup_pid, :iface_pid, :sslink_sup_pid, :sslinks]
+    defstruct [:tun_name, :master_pid, :tun_sup_pid, :iface_pid, :sslink_sup_pid, :sslinks]
   end
 
   def start_link(params) do
@@ -17,8 +17,7 @@ defmodule Acari.TunMan do
   ## Callbacks
   @impl true
   def init(%{tun_sup_pid: tun_sup_pid} = params) when is_pid(tun_sup_pid) do
-    IO.puts("START TUN_MAN")
-    IO.inspect(params)
+    Logger.debug("Start tunnel #{params.tun_name}")
     {:ok, %State{} |> Map.merge(params), {:continue, :init}}
   end
 
@@ -32,6 +31,8 @@ defmodule Acari.TunMan do
 
     {:ok, sslink_sup_pid} = Supervisor.start_child(tun_sup_pid, SSLinkSup)
     Process.link(sslink_sup_pid)
+
+    GenServer.cast(state.master_pid, {:tun_started, state.tun_name})
 
     {:noreply, %{state | sslinks: sslinks, iface_pid: iface_pid, sslink_sup_pid: sslink_sup_pid}}
   end
@@ -167,7 +168,14 @@ defmodule Acari.TunMan do
 
   # Client
   def add_link(tun_name, link_name, connector) do
-    GenServer.call(via(tun_name), {:add_link, link_name, connector})
+    case Registry.lookup(Registry.TunMan, tun_name) do
+      [{pid, _}] ->
+        GenServer.call(pid, {:add_link, link_name, connector})
+
+      _ ->
+        Logger.error("Add link: No such tunnel: #{tun_name}")
+        {:error, :no_tunhel}
+    end
   end
 
   def del_link(tun_name, link_name) do

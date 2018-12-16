@@ -11,14 +11,14 @@ defmodule AcariClient.TunCreator do
   def init(state) do
     IO.puts("TUN_CREATOR")
 
-    :ok = Acari.start_tun("tun")
+    :ok = Acari.start_tun("cl", self())
 
     # start link M1
     link = "m1"
     {:ok, request} = Poison.encode(%{id: "nsg1700_1812000999", link: link})
 
     {:ok, _pid} =
-      Acari.add_link("tun", link, fn
+      Acari.add_link("cl", link, fn
         :connect ->
           connect(%{host: "localhost", port: 7000}, request)
 
@@ -31,7 +31,7 @@ defmodule AcariClient.TunCreator do
     {:ok, request} = Poison.encode(%{id: "nsg1700_1812000999", link: link})
 
     {:ok, _pid} =
-      Acari.add_link("tun", link, fn
+      Acari.add_link("cl", link, fn
         :connect ->
           connect(%{host: "localhost", port: 7000}, request)
 
@@ -40,6 +40,12 @@ defmodule AcariClient.TunCreator do
       end)
 
     {:ok, state}
+  end
+
+  @impl true
+  def handle_cast({:tun_started, tun_name}, state) do
+    Logger.debug("Acari client receive :tun_started from #{tun_name}")
+    {:noreply, state}
   end
 
   defp connect(%{host: host, port: port} = params, request) do
