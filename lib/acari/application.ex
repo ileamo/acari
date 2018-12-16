@@ -6,10 +6,9 @@ defmodule Acari.Application do
   use Application
 
   def start(_type, _args) do
-    IO.puts("START ACARI")
     # List all child processes to be supervised
     children = [
-      AcariClient.Config,
+      # AcariClient.Config,
       Acari.Sup,
       AcariServer.Sup,
       AcariClient.TunCreator

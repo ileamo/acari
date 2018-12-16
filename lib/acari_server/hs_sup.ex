@@ -7,7 +7,6 @@ defmodule AcariServer.HsSup do
 
   @impl true
   def init(_arg) do
-    IO.puts("HS SUP")
     DynamicSupervisor.init(strategy: :one_for_one)
   end
 end

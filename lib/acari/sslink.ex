@@ -26,7 +26,6 @@ defmodule Acari.SSLink do
   @impl true
   def init(%{name: name, tun_man_pid: tun_man_pid, iface_pid: iface_pid} = state)
       when is_binary(name) and is_pid(tun_man_pid) and is_pid(iface_pid) do
-    IO.puts("START SSLINK #{name}")
     {:ok, %State{} |> Map.merge(state), {:continue, :init}}
   end
 
@@ -104,19 +103,12 @@ defmodule Acari.SSLinkSnd do
   def handle_cast({:send, packet}, state = %{sslsocket: sslsocket}) do
     case :ssl.send(sslsocket, packet) do
       :ok ->
-        Logger.debug("SSL send #{byte_size(packet)} bytes")
         {:noreply, state}
 
       {:error, reason} ->
         Logger.warn("Can't send to SSL socket: #{inspect(reason)}")
         {:stop, :shutdown}
     end
-  end
-
-  @impl true
-  def handle_info(msg, state) do
-    Logger.warn("SSL SENDER info: #{inspect(msg)}")
-    {:noreply, state}
   end
 
   # Client

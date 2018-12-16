@@ -9,7 +9,6 @@ defmodule Acari.SSLinkSup do
 
   @impl true
   def init(_arg) do
-    IO.puts("START SSLINK SUP")
     DynamicSupervisor.init(strategy: :one_for_one)
   end
 end

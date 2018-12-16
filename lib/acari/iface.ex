@@ -20,7 +20,6 @@ defmodule Acari.Iface do
   ## Callbacks
   @impl true
   def init(_params) do
-    IO.puts("IFACE started")
     {:ok, ifsocket} = :tuncer.create(<<>>, [:tun, :no_pi, active: true])
     :tuncer.persist(ifsocket, false)
     name = :tuncer.devname(ifsocket)
@@ -69,7 +68,6 @@ defmodule Acari.Iface do
       when is_pid(sslink_snd_pid) do
     case Process.alive?(sslink_snd_pid) do
       true ->
-        Logger.debug("IFACE receive #{byte_size(packet)}")
         Acari.SSLinkSnd.send(sslink_snd_pid, packet)
         {:noreply, state}
 
@@ -130,7 +128,6 @@ defmodule Acari.IfaceSnd do
   @impl true
   def handle_cast({:send, packet}, state = %{ifsocket: ifsocket}) do
     :tuncer.send(ifsocket, packet)
-    Logger.debug("IFACE send #{byte_size(packet)} bytes")
     {:noreply, state}
   end
 

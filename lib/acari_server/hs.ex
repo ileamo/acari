@@ -9,7 +9,6 @@ defmodule AcariServer.Hs do
   ## Callbacks
   @impl true
   def init(sock) do
-    IO.puts("START HS: #{inspect(sock)}")
     :ssl.controlling_process(sock, self())
     {:ok, sock, {:continue, :init}}
   end

@@ -42,7 +42,6 @@ defmodule Acari.TunMan do
         {:set_sslink_snd_pid, name, pid},
         %State{sslinks: sslinks, iface_pid: iface_pid} = state
       ) do
-    IO.puts("CAST SENDER PID")
     true = :ets.update_element(sslinks, name, {3, pid})
     Iface.set_sslink_snd_pid(iface_pid, pid)
     {:noreply, state}

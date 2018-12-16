@@ -9,7 +9,6 @@ defmodule AcariClient.TunCreator do
   ## Callbacks
   @impl true
   def init(state) do
-    IO.puts("TUN_CREATOR")
     :ok = Acari.start_tun("cl", self())
     {:ok, state}
   end
