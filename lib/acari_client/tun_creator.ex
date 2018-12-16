@@ -10,8 +10,19 @@ defmodule AcariClient.TunCreator do
   @impl true
   def init(state) do
     IO.puts("TUN_CREATOR")
-
     :ok = Acari.start_tun("cl", self())
+    {:ok, state}
+  end
+
+  @impl true
+  def handle_cast({:tun_started, tun_name}, state) do
+    Logger.debug("Acari client receive :tun_started from #{tun_name}")
+    restart_tunnel()
+    {:noreply, state}
+  end
+
+  defp restart_tunnel() do
+    # :ok = Acari.start_tun("cl", self())
 
     # start link M1
     link = "m1"
@@ -38,14 +49,6 @@ defmodule AcariClient.TunCreator do
         :restart ->
           true
       end)
-
-    {:ok, state}
-  end
-
-  @impl true
-  def handle_cast({:tun_started, tun_name}, state) do
-    Logger.debug("Acari client receive :tun_started from #{tun_name}")
-    {:noreply, state}
   end
 
   defp connect(%{host: host, port: port} = params, request) do

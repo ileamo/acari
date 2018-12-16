@@ -1,5 +1,5 @@
 defmodule Acari.TunSup do
-  use Supervisor, restart: :temporary
+  use Supervisor
 
   def start_link(params) do
     tun_name = Map.fetch!(params, :tun_name)
