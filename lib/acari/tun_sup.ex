@@ -22,26 +22,4 @@ defmodule Acari.TunSup do
   defp via(name) do
     {:via, Registry, {Registry.TunSup, name}}
   end
-
-  # Client
-
-  @sup Acari.TunsSup
-  def start_tun(tun_name) when is_binary(tun_name) do
-    case DynamicSupervisor.start_child(
-           @sup,
-           {__MODULE__, %{tun_name: tun_name}}
-         ) do
-      {:ok, _pid} -> :ok
-      error -> error
-    end
-  end
-
-  def start_tun(_), do: {:error, "Tunnel name must be string"}
-
-  def stop_tun(tun_name) do
-    case Registry.lookup(Registry.TunSup, tun_name) do
-      [{pid, _}] -> DynamicSupervisor.terminate_child(@sup, pid)
-      _ -> {:error, "No tunnel '#{tun_name}'"}
-    end
-  end
 end
