@@ -19,24 +19,25 @@ defmodule Acari.Iface do
 
   ## Callbacks
   @impl true
-  def init(_params) do
+  def init(%{tun_name: tun_name} = _params) do
     {:ok, ifsocket} = :tuncer.create(<<>>, [:tun, :no_pi, active: true])
     :tuncer.persist(ifsocket, false)
-    name = :tuncer.devname(ifsocket)
+    ifname = :tuncer.devname(ifsocket)
     {:ok, ifsnd_pid} = Acari.IfaceSnd.start_link(%{ifsocket: ifsocket})
 
     with {_, 0} <-
            System.cmd(
              "ip",
-             ["address", "add", "192.168.123.5/32", "peer", "192.168.123.4", "dev", name],
+             ["address", "add", "192.168.123.5/32", "peer", "192.168.123.4", "dev", ifname],
              stderr_to_stdout: true
            ),
-         :ok = if_up(name) do
-      Logger.info("IFACE created and UP")
+         :ok = if_up(ifname) do
+      Logger.info("#{tun_name}: iface #{ifname}: created and UP")
 
       state = %{
+        tun_name: tun_name,
         ifsocket: ifsocket,
-        ifname: name,
+        ifname: ifname,
         ifsnd_pid: ifsnd_pid,
         up: true
       }
@@ -44,7 +45,7 @@ defmodule Acari.Iface do
       {:ok, state}
     else
       {err, _} ->
-        Logger.error("IFACE not started: #{inspect(err)}")
+        Logger.error("#{tun_name}: iface not started: #{inspect(err)}")
         :tuncer.destroy(ifsocket)
         {:stop, err}
     end
@@ -77,19 +78,19 @@ defmodule Acari.Iface do
   end
 
   def handle_info({:tuntap, _pid, _packet}, state) do
-    Logger.debug("IFACE: No link to send")
+    Logger.debug("#{state.tun_name}: iface #{state.ifname}: No link to send")
     # if_down(ifname)
     {:noreply, %{state | up: false}}
   end
 
   def handle_info({:tuntap_error, _pid, reason}, state) do
-    Logger.error("IFACE: #{inspect(reason)}")
+    Logger.error("#{state.tun_name}: iface #{state.ifname}: #{inspect(reason)}")
     # GenServer.cast(pid, :terminate)
     {:stop, :shutdown, state}
   end
 
   def handle_info(msg, state) do
-    Logger.warn("IFACE: unknown message: #{inspect(msg)}")
+    Logger.warn("#{state.tun_name}: iface #{state.ifname}: unexpected message: #{inspect(msg)}")
     {:noreply, state}
   end
 
@@ -112,7 +113,6 @@ defmodule Acari.Iface do
 end
 
 defmodule Acari.IfaceSnd do
-  require Logger
   use GenServer
 
   def start_link(params) do

@@ -17,16 +17,16 @@ defmodule Acari.TunMan do
   ## Callbacks
   @impl true
   def init(%{tun_sup_pid: tun_sup_pid} = params) when is_pid(tun_sup_pid) do
-    Logger.debug("Start tunnel #{params.tun_name}")
     {:ok, %State{} |> Map.merge(params), {:continue, :init}}
   end
 
   @impl true
   def handle_continue(:init, %{tun_sup_pid: tun_sup_pid} = state) do
+    Logger.info("#{state.tun_name}: Tunnel (re)started")
     sslinks = :ets.new(:sslinks, [:set, :protected])
     Process.flag(:trap_exit, true)
 
-    {:ok, iface_pid} = Supervisor.start_child(tun_sup_pid, Iface)
+    {:ok, iface_pid} = Supervisor.start_child(tun_sup_pid, {Iface, %{tun_name: state.tun_name}})
     Process.link(iface_pid)
 
     {:ok, sslink_sup_pid} = Supervisor.start_child(tun_sup_pid, SSLinkSup)
