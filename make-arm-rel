@@ -1,8 +1,7 @@
 #! /usr/bin/env sh
 rm -r _build/prod
 
-# TODO  procket: make clean, AR?=, RANLIB?=
-
+make -C deps/procket/c_src clean
 export CROSSCOMPILE=1
 export ERLANG_ARCH=32
 export CC=/opt/nsgdevkit-2017-Q2/usr/bin/arm-nsg_rt-linux-gnueabi-gcc
