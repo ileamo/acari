@@ -35,33 +35,27 @@ defmodule Acari.Iface do
     ifname = :tuncer.devname(ifsocket)
     {:ok, ifsnd_pid} = Acari.IfaceSnd.start_link(%{ifsocket: ifsocket})
 
-    with {_, 0} <-
-           System.cmd(
-             "ip",
-             ["address", "add", "192.168.123.5/32", "peer", "192.168.123.4", "dev", ifname],
-             stderr_to_stdout: true
-           ) do
-      Logger.info("#{tun_name}: iface #{ifname}: created and UP")
+    #       System.cmd(
+    #       "ip",
+    #       ["address", "add", "192.168.123.5/32", "peer", "192.168.123.4", "dev", ifname],
+    #       stderr_to_stdout: true
+    #     )
+    Logger.info("#{tun_name}: iface #{ifname}: created")
 
-      state = %State{
-        tun_name: tun_name,
-        ifsocket: ifsocket,
-        ifname: ifname,
-        ifsnd_pid: ifsnd_pid
-      }
+    state = %State{
+      tun_name: tun_name,
+      ifsocket: ifsocket,
+      ifname: ifname,
+      ifsnd_pid: ifsnd_pid
+    }
 
-      {:ok, state}
-    else
-      {err, _} ->
-        Logger.error("#{tun_name}: iface not started: #{inspect(err)}")
-        :tuncer.destroy(ifsocket)
-        {:stop, err}
-    end
+    {:ok, state}
   end
 
   @impl true
   def handle_cast({:set_sslink_snd_pid, sslink_snd_pid}, state) do
     if !state.up, do: :ok = if_up(state.ifname)
+
     {:noreply, %State{state | sslink_snd_pid: sslink_snd_pid}}
   end
 
