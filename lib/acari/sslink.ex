@@ -1,6 +1,7 @@
 defmodule Acari.SSLink do
-  require Logger
   use GenServer, restart: :temporary
+  require Logger
+  require Acari.Const, as: Const
   alias Acari.Iface
   alias Acari.TunMan
 
@@ -51,9 +52,9 @@ defmodule Acari.SSLink do
   end
 
   @impl true
-  def handle_info({:ssl, _sslsocket, frame}, state = %{ifsnd_pid: ifsnd_pid}) do
+  def handle_info({:ssl, _sslsocket, frame}, %{ifsnd_pid: ifsnd_pid} = state) do
     case parse(:erlang.list_to_binary(frame)) do
-      {:int, com, data} -> exec_internal(com, data)
+      {:int, com, data} -> exec_internal(state, com, data)
       {:ext, _com, _data} -> :ok
       packet -> Acari.IfaceSnd.send(ifsnd_pid, packet)
     end
@@ -71,7 +72,7 @@ defmodule Acari.SSLink do
   end
 
   def handle_info(:ping, state) do
-    send_int_command(state, 1, to_string(:os.system_time(:second)))
+    send_int_command(state, Const.int_com_echo_request(), to_string(:os.system_time(:second)))
     # Reschedule once more
     schedule_ping()
     {:noreply, state}
@@ -113,8 +114,23 @@ defmodule Acari.SSLink do
     end
   end
 
-  defp exec_internal(com, data) do
+  defp exec_internal(state, com, data) do
     Logger.debug("get int command: #{inspect(%{com: com, data: data})}")
+
+    case com do
+      Const.int_com_echo_reply() ->
+        :ok
+
+      Const.int_com_echo_request() ->
+        send_int_command(state, Const.int_com_echo_reply(), data)
+
+      _ ->
+        Logger.warn(
+          "#{state.tun_name}: #{state.name}: unexpected int command: #{
+            inspect(%{com: com, data: data})
+          }"
+        )
+    end
   end
 
   defp schedule_ping() do
