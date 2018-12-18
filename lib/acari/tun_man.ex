@@ -169,7 +169,7 @@ defmodule Acari.TunMan do
   # Private
   defp get_best_link(sslinks) do
     case :ets.match_object(sslinks, {:_, :_, :_, :_})
-    |> Enum.min_by fn {_, _, _, parms} -> parms[:latency] end, fn -> nil end do
+         |> Enum.min_by(fn {_, _, _, parms} -> parms[:latency] end, fn -> nil end) do
       {link, _, snd_pid, %{latency: lat}} when is_number(lat) ->
         {link, snd_pid}
 

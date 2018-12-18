@@ -12,6 +12,16 @@ defmodule Acari.Iface do
   production:
   sudo setcap cap_net_admin=ep ./erts-10.1.1/bin/beam.smp cap_net_admin=ep /bin/ip
   """
+  defmodule State do
+    defstruct [
+      :tun_name,
+      :ifsocket,
+      :ifname,
+      :ifsnd_pid,
+      :up,
+      :sslink_snd_pid
+    ]
+  end
 
   def start_link(params) do
     GenServer.start_link(__MODULE__, params)
@@ -30,16 +40,14 @@ defmodule Acari.Iface do
              "ip",
              ["address", "add", "192.168.123.5/32", "peer", "192.168.123.4", "dev", ifname],
              stderr_to_stdout: true
-           ),
-         :ok = if_up(ifname) do
+           ) do
       Logger.info("#{tun_name}: iface #{ifname}: created and UP")
 
-      state = %{
+      state = %State{
         tun_name: tun_name,
         ifsocket: ifsocket,
         ifname: ifname,
-        ifsnd_pid: ifsnd_pid,
-        up: true
+        ifsnd_pid: ifsnd_pid
       }
 
       {:ok, state}
@@ -53,7 +61,8 @@ defmodule Acari.Iface do
 
   @impl true
   def handle_cast({:set_sslink_snd_pid, sslink_snd_pid}, state) do
-    {:noreply, state |> Map.put(:sslink_snd_pid, sslink_snd_pid)}
+    if !state.up, do: :ok = if_up(state.ifname)
+    {:noreply, %State{state | sslink_snd_pid: sslink_snd_pid}}
   end
 
   @impl true
@@ -73,7 +82,7 @@ defmodule Acari.Iface do
         {:noreply, state}
 
       _ ->
-        {:noreply, %{state | sslink_snd_pid: nil}}
+        {:noreply, %State{state | sslink_snd_pid: nil}}
     end
   end
 
