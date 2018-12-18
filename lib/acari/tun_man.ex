@@ -47,6 +47,15 @@ defmodule Acari.TunMan do
     {:noreply, state}
   end
 
+  def handle_cast(
+        {:set_sslink_params, name, params},
+        %State{sslinks: sslinks} = state
+      ) do
+    elem = :ets.lookup_element(sslinks, name, 4)
+    true = :ets.update_element(sslinks, name, {4, elem |> Map.merge(params)})
+    {:noreply, state}
+  end
+
   @impl true
   def handle_call({:add_link, name, connector}, _from, %{sslinks: sslinks} = state)
       when is_binary(name) do
@@ -187,5 +196,9 @@ defmodule Acari.TunMan do
 
   def set_sslink_snd_pid(tun_pid, name, pid) do
     GenServer.cast(tun_pid, {:set_sslink_snd_pid, name, pid})
+  end
+
+  def set_sslink_params(tun_pid, name, params) do
+    GenServer.cast(tun_pid, {:set_sslink_params, name, params})
   end
 end

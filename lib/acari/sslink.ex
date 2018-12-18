@@ -53,6 +53,11 @@ defmodule Acari.SSLink do
   end
 
   @impl true
+  def handle_call(:get_state, _from, state) do
+    {:reply, state, state}
+  end
+
+  @impl true
   def handle_info({:ssl, _sslsocket, frame}, %{ifsnd_pid: ifsnd_pid} = state) do
     state =
       case parse(:erlang.list_to_binary(frame)) do
@@ -96,6 +101,12 @@ defmodule Acari.SSLink do
     {:noreply, state}
   end
 
+  # Client
+
+  def get_state(pid) do
+    GenServer.call(pid, :get_state)
+  end
+
   # Private
 
   defp parse(frame) do
@@ -133,8 +144,9 @@ defmodule Acari.SSLink do
     case com do
       Const.int_com_echo_reply() ->
         <<n::64>> = data
-        Logger.debug("Latency: #{(:erlang.system_time(:microsecond) - n) / 1000}ms")
-        %State{state | latency: :erlang.system_time(:microsecond) - n}
+        latency = :erlang.system_time(:microsecond) - n
+        TunMan.set_sslink_params(state.tun_man_pid, state.name, %{latency: latency})
+        %State{state | latency: latency}
 
       Const.int_com_echo_request() ->
         send_int_command(state, Const.int_com_echo_reply(), data)
@@ -152,7 +164,7 @@ defmodule Acari.SSLink do
   end
 
   defp schedule_ping() do
-    Process.send_after(self(), :ping, 5 * 1000)
+    Process.send_after(self(), :ping, Enum.random(4000..6000))
   end
 end
 
