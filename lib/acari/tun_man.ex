@@ -75,20 +75,18 @@ defmodule Acari.TunMan do
     prev_link = state.current_link
 
     state =
-      :ets.match_object(sslinks, {:_, :_, :_, :_})
-      |> Enum.min_by(fn {_, _, _, parms} -> parms[:latency] end, fn -> nil end)
-      |> (fn
-            {^prev_link, _, _, _} ->
-              state
+      case get_best_link(sslinks) do
+        {^prev_link, _} ->
+          state
 
-            {new_link, _, snd_pid, %{latency: lat}} when is_number(lat) ->
-              Iface.set_sslink_snd_pid(state.iface_pid, snd_pid)
-              Logger.debug("#{state.tun_name}: New current link: #{new_link}(#{lat})")
-              %State{state | current_link: new_link}
+        {new_link, snd_pid} ->
+          Iface.set_sslink_snd_pid(state.iface_pid, snd_pid)
+          Logger.debug("#{state.tun_name}: New current link: #{new_link}")
+          %State{state | current_link: new_link}
 
-            _ ->
-              state
-          end).()
+        _ ->
+          state
+      end
 
     {:noreply, state}
   end
@@ -169,6 +167,17 @@ defmodule Acari.TunMan do
   end
 
   # Private
+  defp get_best_link(sslinks) do
+    case :ets.match_object(sslinks, {:_, :_, :_, :_})
+    |> Enum.min_by fn {_, _, _, parms} -> parms[:latency] end, fn -> nil end do
+      {link, _, snd_pid, %{latency: lat}} when is_number(lat) ->
+        {link, snd_pid}
+
+      _ ->
+        nil
+    end
+  end
+
   defp update_sslink(
          %{
            tun_name: tun_name,
