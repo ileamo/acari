@@ -104,7 +104,7 @@ defmodule Acari.TunMan do
         :ets.delete(sslinks, name)
 
       [[name, %{connector: connector, restart: timestamp}]] ->
-        if((delta = :os.system_time(:second) - timestamp) >= 10) do
+        if((delta = :erlang.system_time(:second) - timestamp) >= 10) do
           update_sslink(state, name, connector)
         else
           Process.send_after(self(), {:EXIT, pid, :restart}, (10 - delta) * 1000)
@@ -154,7 +154,7 @@ defmodule Acari.TunMan do
         {name, pid, nil,
          %{
            connector: connector,
-           restart: if(connector.(:restart), do: :os.system_time(:second), else: 0)
+           restart: if(connector.(:restart), do: :erlang.system_time(:second), else: 0)
          }}
       )
 

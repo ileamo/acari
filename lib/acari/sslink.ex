@@ -15,7 +15,8 @@ defmodule Acari.SSLink do
       :snd_pid,
       :iface_pid,
       :ifsnd_pid,
-      :sslsocket
+      :sslsocket,
+      :latency
     ]
   end
 
@@ -53,11 +54,18 @@ defmodule Acari.SSLink do
 
   @impl true
   def handle_info({:ssl, _sslsocket, frame}, %{ifsnd_pid: ifsnd_pid} = state) do
-    case parse(:erlang.list_to_binary(frame)) do
-      {:int, com, data} -> exec_internal(state, com, data)
-      {:ext, _com, _data} -> :ok
-      packet -> Acari.IfaceSnd.send(ifsnd_pid, packet)
-    end
+    state =
+      case parse(:erlang.list_to_binary(frame)) do
+        {:int, com, data} ->
+          exec_internal(state, com, data)
+
+        {:ext, _com, _data} ->
+          state
+
+        packet ->
+          Acari.IfaceSnd.send(ifsnd_pid, packet)
+          state
+      end
 
     {:noreply, state}
   end
@@ -72,7 +80,12 @@ defmodule Acari.SSLink do
   end
 
   def handle_info(:ping, state) do
-    send_int_command(state, Const.int_com_echo_request(), to_string(:os.system_time(:second)))
+    send_int_command(
+      state,
+      Const.int_com_echo_request(),
+      <<:erlang.system_time(:microsecond)::64>>
+    )
+
     # Reschedule once more
     schedule_ping()
     {:noreply, state}
@@ -115,14 +128,17 @@ defmodule Acari.SSLink do
   end
 
   defp exec_internal(state, com, data) do
-    Logger.debug("get int command: #{inspect(%{com: com, data: data})}")
+    # Logger.debug("get int command: #{inspect(%{com: com, data: data})}")
 
     case com do
       Const.int_com_echo_reply() ->
-        :ok
+        <<n::64>> = data
+        Logger.debug("Latency: #{(:erlang.system_time(:microsecond) - n) / 1000}ms")
+        %State{state | latency: :erlang.system_time(:microsecond) - n}
 
       Const.int_com_echo_request() ->
         send_int_command(state, Const.int_com_echo_reply(), data)
+        state
 
       _ ->
         Logger.warn(
@@ -130,6 +146,8 @@ defmodule Acari.SSLink do
             inspect(%{com: com, data: data})
           }"
         )
+
+        state
     end
   end
 
@@ -166,7 +184,7 @@ defmodule Acari.SSLinkSnd do
 
   # Client
 
-  def send(sslink_snd_pid, packet, command \\ false) do
+  def send(sslink_snd_pid, packet, _command \\ false) do
     frame = <<0::16>> <> packet
     GenServer.cast(sslink_snd_pid, {:send, frame})
   end
