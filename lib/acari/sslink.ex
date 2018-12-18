@@ -39,6 +39,7 @@ defmodule Acari.SSLink do
     {:ok, snd_pid} = Acari.SSLinkSnd.start_link(%{sslsocket: sslsocket})
     ifsnd_pid = Iface.get_ifsnd_pid(iface_pid)
     TunMan.set_sslink_snd_pid(tun_man_pid, name, snd_pid)
+    schedule_ping()
 
     {:noreply,
      %{state | pid: self(), sslsocket: sslsocket, snd_pid: snd_pid, ifsnd_pid: ifsnd_pid}}
@@ -52,7 +53,8 @@ defmodule Acari.SSLink do
   @impl true
   def handle_info({:ssl, _sslsocket, frame}, state = %{ifsnd_pid: ifsnd_pid}) do
     case parse(:erlang.list_to_binary(frame)) do
-      :ok -> :ok
+      {:int, com, data} -> exec_internal(com, data)
+      {:ext, _com, _data} -> :ok
       packet -> Acari.IfaceSnd.send(ifsnd_pid, packet)
     end
 
@@ -68,6 +70,13 @@ defmodule Acari.SSLink do
     {:stop, :shutdown, state}
   end
 
+  def handle_info(:ping, state) do
+    send_int_command(state, 1, to_string(:os.system_time(:second)))
+    # Reschedule once more
+    schedule_ping()
+    {:noreply, state}
+  end
+
   def handle_info(msg, state) do
     Logger.warn("SSL: unknown message: #{inspect(msg)}")
     {:noreply, state}
@@ -76,12 +85,40 @@ defmodule Acari.SSLink do
   # Private
 
   defp parse(frame) do
-    <<com::1, _val::15, packet::binary>> = frame
+    <<com::1, scope::1, val::14, packet::binary>> = frame
 
     case com do
-      0 -> packet
-      1 -> :ok
+      0 ->
+        packet
+
+      1 ->
+        case scope do
+          0 -> {:ext, val, packet}
+          1 -> {:int, val, packet}
+        end
     end
+  end
+
+  defp send_int_command(state, com, payload) do
+    case :ssl.send(state.sslsocket, <<3::2, com::14>> <> payload) do
+      :ok ->
+        :ok
+
+      {:error, reason} = res ->
+        Logger.warn(
+          "#{state.tun_name}: #{state.name}: Can't send to SSL socket: #{inspect(reason)}"
+        )
+
+        res
+    end
+  end
+
+  defp exec_internal(com, data) do
+    Logger.debug("get int command: #{inspect(%{com: com, data: data})}")
+  end
+
+  defp schedule_ping() do
+    Process.send_after(self(), :ping, 5 * 1000)
   end
 end
 
