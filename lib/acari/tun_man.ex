@@ -6,7 +6,15 @@ defmodule Acari.TunMan do
   alias Acari.Iface
 
   defmodule State do
-    defstruct [:tun_name, :master_pid, :tun_sup_pid, :iface_pid, :sslink_sup_pid, :sslinks]
+    defstruct [
+      :tun_name,
+      :master_pid,
+      :tun_sup_pid,
+      :iface_pid,
+      :sslink_sup_pid,
+      :sslinks,
+      current_link: {nil, nil}
+    ]
   end
 
   def start_link(params) do
@@ -43,8 +51,15 @@ defmodule Acari.TunMan do
         %State{sslinks: sslinks, iface_pid: iface_pid} = state
       ) do
     true = :ets.update_element(sslinks, name, {3, pid})
-    Iface.set_sslink_snd_pid(iface_pid, pid)
-    {:noreply, state}
+
+    case state.current_link do
+      {nil, _} ->
+        Iface.set_sslink_snd_pid(iface_pid, pid)
+        {:noreply, %State{state | current_link: {name, nil}}}
+
+      _ ->
+        {:noreply, state}
+    end
   end
 
   def handle_cast(
@@ -53,6 +68,28 @@ defmodule Acari.TunMan do
       ) do
     elem = :ets.lookup_element(sslinks, name, 4)
     true = :ets.update_element(sslinks, name, {4, elem |> Map.merge(params)})
+
+    # get best link
+    # TODO if  new letency set
+
+    prev_link = state.current_link
+
+    state =
+      :ets.match_object(sslinks, {:_, :_, :_, :_})
+      |> Enum.min_by(fn {_, _, _, parms} -> parms[:latency] end, fn -> nil end)
+      |> (fn
+            {^prev_link, _, _, _} ->
+              state
+
+            {new_link, _, snd_pid, %{latency: lat}} when is_number(lat) ->
+              Iface.set_sslink_snd_pid(state.iface_pid, snd_pid)
+              Logger.debug("#{state.tun_name}: New current link: #{new_link}(#{lat})")
+              %State{state | current_link: new_link}
+
+            _ ->
+              state
+          end).()
+
     {:noreply, state}
   end
 
