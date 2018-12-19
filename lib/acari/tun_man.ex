@@ -72,21 +72,7 @@ defmodule Acari.TunMan do
     # get best link
     # TODO if  new letency set
 
-    prev_link = state.current_link
-
-    state =
-      case get_best_link(sslinks) do
-        {^prev_link, _} ->
-          state
-
-        {new_link, snd_pid} ->
-          Iface.set_sslink_snd_pid(state.iface_pid, snd_pid)
-          Logger.debug("#{state.tun_name}: New current link: #{new_link}")
-          %State{state | current_link: new_link}
-
-        _ ->
-          state
-      end
+    state = if params[:latency], do: update_best_link(state), else: state
 
     {:noreply, state}
   end
@@ -120,7 +106,7 @@ defmodule Acari.TunMan do
       [{_, pid, _, _}] ->
         :ets.delete(sslinks, name)
         DynamicSupervisor.terminate_child(sslink_sup_pid, pid)
-        {:reply, :ok, state}
+        {:reply, :ok, update_best_link(state)}
     end
   end
 
@@ -158,7 +144,7 @@ defmodule Acari.TunMan do
         nil
     end
 
-    {:noreply, state}
+    {:noreply, update_best_link(state)}
   end
 
   def handle_info(mes, state) do
@@ -167,6 +153,23 @@ defmodule Acari.TunMan do
   end
 
   # Private
+  defp update_best_link(state) do
+    prev_link = state.current_link
+
+    case get_best_link(state.sslinks) do
+      {^prev_link, _} ->
+        state
+
+      {new_link, snd_pid} ->
+        Iface.set_sslink_snd_pid(state.iface_pid, snd_pid)
+        Logger.debug("#{state.tun_name}: New current link: #{new_link}")
+        %State{state | current_link: new_link}
+
+      _ ->
+        state
+    end
+  end
+
   defp get_best_link(sslinks) do
     case :ets.match_object(sslinks, {:_, :_, :_, :_})
          |> Enum.min_by(fn {_, _, _, parms} -> parms[:latency] end, fn -> nil end) do
