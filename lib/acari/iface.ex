@@ -60,8 +60,8 @@ defmodule Acari.Iface do
   end
 
   @impl true
-  def handle_call(:get_ifsnd_pid, _from, %{ifsnd_pid: ifsnd_pid} = state) do
-    {:reply, ifsnd_pid, state}
+  def handle_call(:get_if_info, _from, %{ifname: ifname, ifsnd_pid: ifsnd_pid} = state) do
+    {:reply, {ifname, ifsnd_pid}, state}
   end
 
   @impl true
@@ -102,8 +102,8 @@ defmodule Acari.Iface do
     GenServer.cast(iface_pid, {:set_sslink_snd_pid, sslink_snd_pid})
   end
 
-  def get_ifsnd_pid(iface_pid) do
-    GenServer.call(iface_pid, :get_ifsnd_pid)
+  def get_if_info(iface_pid) do
+    GenServer.call(iface_pid, :get_if_info)
   end
 
   defp if_up(ifname), do: if_set_admstate(ifname, "up")

@@ -2,22 +2,43 @@ defmodule AcariClient.TunCreator do
   use GenServer
   require Logger
 
-  def start_link(state) do
-    GenServer.start_link(__MODULE__, state, name: __MODULE__)
+  defmodule State do
+    defstruct [
+      :tun_name,
+      :ifname
+    ]
+  end
+
+  def start_link(params) do
+    GenServer.start_link(__MODULE__, params, name: __MODULE__)
   end
 
   ## Callbacks
   @impl true
-  def init(state) do
+  def init(_params) do
     :ok = Acari.start_tun("cl", self())
-    {:ok, state}
+    {:ok, %State{}}
   end
 
   @impl true
-  def handle_cast({:tun_started, tun_name}, state) do
-    Logger.debug("Acari client receive :tun_started from #{tun_name}")
+  def handle_cast({:tun_started, {tun_name, ifname}}, state) do
+    Logger.debug("Acari client receive :tun_started from #{tun_name}:#{ifname}")
     restart_tunnel()
+    {:noreply, %State{state | tun_name: tun_name, ifname: ifname}}
+  end
+
+  def handle_cast({:tun_script, _tun_name, script}, %{ifname: ifname} = state) do
+    exec_script(script, [{"IFNAME", ifname}])
     {:noreply, state}
+  end
+
+  defp exec_script(script, env) do
+    IO.inspect({script, env})
+
+    case System.cmd("sh", ["-c", script], stderr_to_stdout: true, env: env) do
+      {data, 0} -> data
+      {err, code} -> Logger.warn("Script `#{script}` exits with code #{code}, output: #{err}")
+    end
   end
 
   defp restart_tunnel() do

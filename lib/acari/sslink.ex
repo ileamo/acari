@@ -39,7 +39,7 @@ defmodule Acari.SSLink do
       ) do
     sslsocket = connector.(:connect)
     {:ok, snd_pid} = Acari.SSLinkSnd.start_link(%{sslsocket: sslsocket})
-    ifsnd_pid = Iface.get_ifsnd_pid(iface_pid)
+    {_, ifsnd_pid} = Iface.get_if_info(iface_pid)
     TunMan.set_sslink_snd_pid(tun_man_pid, name, snd_pid)
     schedule_ping()
 

@@ -10,7 +10,9 @@ defmodule Acari.TunMan do
       :tun_name,
       :master_pid,
       :tun_sup_pid,
+      :ifname,
       :iface_pid,
+      :ifsnd_pid,
       :sslink_sup_pid,
       :sslinks,
       current_link: {nil, nil}
@@ -37,12 +39,22 @@ defmodule Acari.TunMan do
     {:ok, iface_pid} = Supervisor.start_child(tun_sup_pid, {Iface, %{tun_name: state.tun_name}})
     Process.link(iface_pid)
 
+    {ifname, ifsnd_pid} = Iface.get_if_info(iface_pid)
+
     {:ok, sslink_sup_pid} = Supervisor.start_child(tun_sup_pid, SSLinkSup)
     Process.link(sslink_sup_pid)
 
-    GenServer.cast(state.master_pid, {:tun_started, state.tun_name})
+    GenServer.cast(state.master_pid, {:tun_started, {state.tun_name, ifname}})
 
-    {:noreply, %{state | sslinks: sslinks, iface_pid: iface_pid, sslink_sup_pid: sslink_sup_pid}}
+    {:noreply,
+     %{
+       state
+       | sslinks: sslinks,
+         ifname: ifname,
+         iface_pid: iface_pid,
+         ifsnd_pid: ifsnd_pid,
+         sslink_sup_pid: sslink_sup_pid
+     }}
   end
 
   @impl true
