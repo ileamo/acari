@@ -85,9 +85,9 @@ defmodule Acari.SSLink do
   end
 
   def handle_info(:ping, state) do
-    send_int_command(
+    send_link_command(
       state,
-      Const.int_com_echo_request(),
+      Const.echo_request(),
       <<:erlang.system_time(:microsecond)::64>>
     )
 
@@ -124,8 +124,8 @@ defmodule Acari.SSLink do
     end
   end
 
-  defp send_int_command(state, com, payload) do
-    case :ssl.send(state.sslsocket, <<3::2, com::14>> <> payload) do
+  defp send_link_command(state, com, payload) do
+    case :ssl.send(state.sslsocket, <<Const.link_mask()::2, com::14>> <> payload) do
       :ok ->
         :ok
 
@@ -142,14 +142,14 @@ defmodule Acari.SSLink do
     # Logger.debug("get int command: #{inspect(%{com: com, data: data})}")
 
     case com do
-      Const.int_com_echo_reply() ->
+      Const.echo_reply() ->
         <<n::64>> = data
         latency = :erlang.system_time(:microsecond) - n
         TunMan.set_sslink_params(state.tun_man_pid, state.name, %{latency: latency})
         %State{state | latency: latency}
 
-      Const.int_com_echo_request() ->
-        send_int_command(state, Const.int_com_echo_reply(), data)
+      Const.echo_request() ->
+        send_link_command(state, Const.echo_reply(), data)
         state
 
       _ ->
