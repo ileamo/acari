@@ -42,8 +42,6 @@ defmodule AcariClient.TunCreator do
   end
 
   defp restart_tunnel() do
-    # :ok = Acari.start_tun("cl", self())
-
     # start link M1
     link = "m1"
     {:ok, request} = Poison.encode(%{id: "nsg1700_1812000999", link: link})

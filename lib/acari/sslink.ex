@@ -62,9 +62,10 @@ defmodule Acari.SSLink do
     state =
       case parse(:erlang.list_to_binary(frame)) do
         {:int, com, data} ->
-          exec_internal(state, com, data)
+          exec_link_command(state, com, data)
 
-        {:ext, _com, _data} ->
+        {:ext, com, data} ->
+          TunMan.recv_tun_com(state.tun_man_pid, com, data)
           state
 
         packet ->
@@ -138,7 +139,7 @@ defmodule Acari.SSLink do
     end
   end
 
-  defp exec_internal(state, com, data) do
+  defp exec_link_command(state, com, data) do
     # Logger.debug("get int command: #{inspect(%{com: com, data: data})}")
 
     case com do
@@ -196,8 +197,8 @@ defmodule Acari.SSLinkSnd do
 
   # Client
 
-  def send(sslink_snd_pid, packet, _command \\ false) do
-    frame = <<0::16>> <> packet
+  def send(sslink_snd_pid, header \\ <<0::16>>, packet) do
+    frame = header <> packet
     GenServer.cast(sslink_snd_pid, {:send, frame})
   end
 end

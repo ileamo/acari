@@ -19,4 +19,6 @@ defmodule Acari.Const do
 
   defmacro echo_reply, do: 0
   defmacro echo_request, do: 1
+
+  defmacro exec_script, do: 2
 end

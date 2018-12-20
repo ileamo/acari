@@ -1,5 +1,6 @@
 defmodule Acari.TunMan do
   require Logger
+  require Acari.Const, as: Const
   use GenServer
   alias Acari.SSLinkSup
   alias Acari.SSLink
@@ -67,7 +68,7 @@ defmodule Acari.TunMan do
     case state.current_link do
       {nil, _} ->
         Iface.set_sslink_snd_pid(iface_pid, pid)
-        {:noreply, %State{state | current_link: {name, nil}}}
+        {:noreply, %State{state | current_link: {name, pid}}}
 
       _ ->
         {:noreply, state}
@@ -87,6 +88,15 @@ defmodule Acari.TunMan do
     state = if params[:latency], do: update_best_link(state), else: state
 
     {:noreply, state}
+  end
+
+  def handle_cast({:send_tun_com, com, payload}, %{current_link: {_, sslink_snd_pid}} = state) do
+    Acari.SSLinkSnd.send(sslink_snd_pid, <<Const.tun_mask()::2, com::14>>, payload)
+    {:noreply, state}
+  end
+
+  def handle_cast({:recv_tun_com, com, payload}, state) do
+    {:noreply, exec_tun_com(state, com, payload)}
   end
 
   @impl true
@@ -166,15 +176,15 @@ defmodule Acari.TunMan do
 
   # Private
   defp update_best_link(state) do
-    prev_link = state.current_link
+    {prev_link_name, _} = state.current_link
 
     case get_best_link(state.sslinks) do
-      {^prev_link, _} ->
+      {^prev_link_name, _} ->
         state
 
-      {new_link, snd_pid} ->
+      {link_name, snd_pid} = new_link ->
         Iface.set_sslink_snd_pid(state.iface_pid, snd_pid)
-        Logger.debug("#{state.tun_name}: New current link: #{new_link}")
+        Logger.debug("#{state.tun_name}: New current link: #{link_name}")
         %State{state | current_link: new_link}
 
       _ ->
@@ -231,6 +241,18 @@ defmodule Acari.TunMan do
     pid
   end
 
+  defp exec_tun_com(state, com, payload) do
+    case com do
+      Const.exec_script() ->
+        GenServer.cast(state.master_pid, {:tun_script, state.tun_name, payload})
+
+      _ ->
+        Logger.warn("#{state.tun_name}: Bad command: #{com}")
+    end
+
+    state
+  end
+
   defp via(name) do
     {:via, Registry, {Registry.TunMan, name}}
   end
@@ -261,5 +283,13 @@ defmodule Acari.TunMan do
 
   def set_sslink_params(tun_pid, name, params) do
     GenServer.cast(tun_pid, {:set_sslink_params, name, params})
+  end
+
+  def recv_tun_com(tun_pid, com, payload) do
+    GenServer.cast(tun_pid, {:recv_tun_com, com, payload})
+  end
+
+  def exec_remote_script(tun_name, script) do
+    GenServer.cast(via(tun_name), {:send_tun_com, Const.exec_script(), script})
   end
 end
