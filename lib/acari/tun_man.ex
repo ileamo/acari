@@ -99,6 +99,11 @@ defmodule Acari.TunMan do
     {:noreply, exec_tun_com(state, com, payload)}
   end
 
+  def handle_cast({:ip_address, com, ifaddr}, state) do
+    ip_address_p(state, com, ifaddr)
+    {:noreply, state}
+  end
+
   @impl true
   def handle_call({:add_link, name, connector}, _from, %{sslinks: sslinks} = state)
       when is_binary(name) do
@@ -257,6 +262,31 @@ defmodule Acari.TunMan do
     {:via, Registry, {Registry.TunMan, name}}
   end
 
+  defp ip_address_p(%{ifname: ifname} = _state, com, ifaddr) when com in [:add, :del] do
+    com = "#{mk_ifaddr("ip address #{com}", ifaddr)} dev #{ifname}"
+    Acari.exec_script(com)
+  end
+
+  defp mk_ifaddr(com, %{prefix: prefix} = ifaddr) do
+    mk_ifaddr("#{com} #{prefix}", ifaddr |> Map.delete(:prefix))
+  end
+
+  defp mk_ifaddr(com, %{peer: val} = ifaddr) do
+    mk_ifaddr("#{com} peer #{val}", ifaddr |> Map.delete(:peer))
+  end
+
+  defp mk_ifaddr(com, %{broadcast: val} = ifaddr) do
+    mk_ifaddr("#{com} broadcast #{val}", ifaddr |> Map.delete(:broadcast))
+  end
+
+  defp mk_ifaddr(com, %{anycast: val} = ifaddr) do
+    mk_ifaddr("#{com} anycast #{val}", ifaddr |> Map.delete(:anycast))
+  end
+
+  defp mk_ifaddr(com, _ifaddr) do
+    com
+  end
+
   # Client
   def add_link(tun_name, link_name, connector) do
     case Registry.lookup(Registry.TunMan, tun_name) do
@@ -291,5 +321,9 @@ defmodule Acari.TunMan do
 
   def exec_remote_script(tun_name, script) do
     GenServer.cast(via(tun_name), {:send_tun_com, Const.exec_script(), script})
+  end
+
+  def ip_address(com, tun_name, ifaddr) do
+    GenServer.cast(via(tun_name), {:ip_address, com, ifaddr})
   end
 end
