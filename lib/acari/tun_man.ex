@@ -251,7 +251,7 @@ defmodule Acari.TunMan do
       Const.master_mes() ->
         GenServer.cast(state.master_pid, {:tun_mes, state.tun_name, payload})
 
-      Const.json_rec() ->
+      Const.json_req() ->
         state = exec_json_req(state, payload)
 
       _ ->
@@ -342,9 +342,9 @@ defmodule Acari.TunMan do
     GenServer.cast(tun_pid, {:recv_tun_com, com, payload})
   end
 
-  def json_rec(tun_name, payload) do
+  def send_json_request(tun_name, payload) do
     {:ok, json} = Poison.encode(payload)
-    GenServer.cast(via(tun_name), {:send_tun_com, Const.json_rec(), json})
+    GenServer.cast(via(tun_name), {:send_tun_com, Const.json_req(), json})
   end
 
   def ip_address(com, tun_name, ifaddr) do

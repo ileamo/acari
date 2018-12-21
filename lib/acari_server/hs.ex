@@ -29,7 +29,7 @@ defmodule AcariServer.Hs do
            "Listener: accept connection from #{:inet.ntoa(ipaddr)}:#{port}, id:#{id}, link:#{link}"
          ),
          :ok <-
-           (case Acari.start_tun(id) do
+           (case Acari.start_tun(id, AcariServer.Master) do
               :ok -> :ok
               {:error, {:already_started, _}} -> :ok
             end),

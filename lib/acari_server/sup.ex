@@ -8,6 +8,7 @@ defmodule AcariServer.Sup do
   @impl true
   def init(_arg) do
     children = [
+      AcariServer.Master,
       AcariServer.HsSup,
       AcariServer.Listener
     ]

@@ -23,5 +23,5 @@ defmodule Acari.Const do
 
   # tun messages
   defmacro master_mes, do: 0
-  defmacro json_rec, do: 1
+  defmacro json_req, do: 1
 end
