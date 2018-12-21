@@ -248,8 +248,11 @@ defmodule Acari.TunMan do
 
   defp exec_tun_com(state, com, payload) do
     case com do
-      Const.exec_script() ->
-        GenServer.cast(state.master_pid, {:tun_script, state.tun_name, payload})
+      Const.master_mes() ->
+        GenServer.cast(state.master_pid, {:tun_mes, state.tun_name, payload})
+
+      Const.json_rec() ->
+        state = exec_json_req(state, payload)
 
       _ ->
         Logger.warn("#{state.tun_name}: Bad command: #{com}")
@@ -258,29 +261,49 @@ defmodule Acari.TunMan do
     state
   end
 
+  defp exec_json_req(state, json) do
+    {:ok, %{"method" => method, "params" => params}} = Poison.decode(json)
+
+    exec_tun_method(state, method, params)
+  end
+
+  defp exec_tun_method(state, "ip_address_add", params) do
+    ip_address_p(state, :add, params)
+  end
+
+  defp exec_tun_method(state, "ip_address_del", params) do
+    ip_address_p(state, :del, params)
+  end
+
+  defp exec_tun_method(state, method, _) do
+    Logger.error("Unknown method #{method}")
+    state
+  end
+
   defp via(name) do
     {:via, Registry, {Registry.TunMan, name}}
   end
 
-  defp ip_address_p(%{ifname: ifname} = _state, com, ifaddr) when com in [:add, :del] do
+  defp ip_address_p(%{ifname: ifname} = state, com, ifaddr) when com in [:add, :del] do
     com = "#{mk_ifaddr("ip address #{com}", ifaddr)} dev #{ifname}"
     Acari.exec_script(com)
+    state
   end
 
-  defp mk_ifaddr(com, %{prefix: prefix} = ifaddr) do
-    mk_ifaddr("#{com} #{prefix}", ifaddr |> Map.delete(:prefix))
+  defp mk_ifaddr(com, %{"prefix" => prefix} = ifaddr) do
+    mk_ifaddr("#{com} #{prefix}", ifaddr |> Map.delete("prefix"))
   end
 
-  defp mk_ifaddr(com, %{peer: val} = ifaddr) do
-    mk_ifaddr("#{com} peer #{val}", ifaddr |> Map.delete(:peer))
+  defp mk_ifaddr(com, %{"peer" => val} = ifaddr) do
+    mk_ifaddr("#{com} peer #{val}", ifaddr |> Map.delete("peer"))
   end
 
-  defp mk_ifaddr(com, %{broadcast: val} = ifaddr) do
-    mk_ifaddr("#{com} broadcast #{val}", ifaddr |> Map.delete(:broadcast))
+  defp mk_ifaddr(com, %{"broadcast" => val} = ifaddr) do
+    mk_ifaddr("#{com} broadcast #{val}", ifaddr |> Map.delete("broadcast"))
   end
 
-  defp mk_ifaddr(com, %{anycast: val} = ifaddr) do
-    mk_ifaddr("#{com} anycast #{val}", ifaddr |> Map.delete(:anycast))
+  defp mk_ifaddr(com, %{"anycast" => val} = ifaddr) do
+    mk_ifaddr("#{com} anycast #{val}", ifaddr |> Map.delete("anycast"))
   end
 
   defp mk_ifaddr(com, _ifaddr) do
@@ -319,8 +342,9 @@ defmodule Acari.TunMan do
     GenServer.cast(tun_pid, {:recv_tun_com, com, payload})
   end
 
-  def exec_remote_script(tun_name, script) do
-    GenServer.cast(via(tun_name), {:send_tun_com, Const.exec_script(), script})
+  def json_rec(tun_name, payload) do
+    {:ok, json} = Poison.encode(payload)
+    GenServer.cast(via(tun_name), {:send_tun_com, Const.json_rec(), json})
   end
 
   def ip_address(com, tun_name, ifaddr) do

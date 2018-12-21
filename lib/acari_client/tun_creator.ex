@@ -27,18 +27,9 @@ defmodule AcariClient.TunCreator do
     {:noreply, %State{state | tun_name: tun_name, ifname: ifname}}
   end
 
-  def handle_cast({:tun_script, _tun_name, script}, %{ifname: ifname} = state) do
-    exec_script(script, [{"IFNAME", ifname}])
+  def handle_cast({:tun_mes, tun_name, payload}, state) do
+    Logger.warn("Unexpected message from #{tun_name}: #{inspect(payload)}")
     {:noreply, state}
-  end
-
-  defp exec_script(script, env) do
-    IO.inspect({script, env})
-
-    case System.cmd("sh", ["-c", script], stderr_to_stdout: true, env: env) do
-      {data, 0} -> data
-      {err, code} -> Logger.warn("Script `#{script}` exits with code #{code}, output: #{err}")
-    end
   end
 
   defp restart_tunnel() do

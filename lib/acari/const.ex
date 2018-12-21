@@ -17,8 +17,11 @@ defmodule Acari.Const do
     end
   end
 
+  # Link messages
   defmacro echo_reply, do: 0
   defmacro echo_request, do: 1
 
-  defmacro exec_script, do: 2
+  # tun messages
+  defmacro master_mes, do: 0
+  defmacro json_rec, do: 1
 end
