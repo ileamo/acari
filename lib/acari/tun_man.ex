@@ -262,7 +262,7 @@ defmodule Acari.TunMan do
   end
 
   defp exec_json_req(state, json) do
-    {:ok, %{"method" => method, "params" => params}} = Poison.decode(json)
+    {:ok, %{"method" => method, "params" => params}} = Jason.decode(json)
 
     exec_tun_method(state, method, params)
   end
@@ -343,7 +343,7 @@ defmodule Acari.TunMan do
   end
 
   def send_json_request(tun_name, payload) do
-    {:ok, json} = Poison.encode(payload)
+    {:ok, json} = Jason.encode(payload)
     GenServer.cast(via(tun_name), {:send_tun_com, Const.json_req(), json})
   end
 

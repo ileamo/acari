@@ -35,7 +35,7 @@ defmodule AcariClient.TunCreator do
   defp restart_tunnel() do
     # start link M1
     link = "m1"
-    {:ok, request} = Poison.encode(%{id: "nsg1700_1812000999", link: link})
+    {:ok, request} = Jason.encode(%{id: "nsg1700_1812000999", link: link})
 
     {:ok, _pid} =
       Acari.add_link("cl", link, fn
@@ -48,7 +48,7 @@ defmodule AcariClient.TunCreator do
 
     # start link M1
     link = "m2"
-    {:ok, request} = Poison.encode(%{id: "nsg1700_1812000999", link: link})
+    {:ok, request} = Jason.encode(%{id: "nsg1700_1812000999", link: link})
 
     {:ok, _pid} =
       Acari.add_link("cl", link, fn

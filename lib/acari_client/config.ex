@@ -29,7 +29,7 @@ defmodule AcariClient.Config do
   defp get_acari_conf() do
     {:ok, conf} =
       read_all_file("priv/acari.json")
-      |> Poison.decode()
+      |> Jason.decode()
 
     conf
   end

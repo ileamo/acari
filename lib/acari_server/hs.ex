@@ -23,7 +23,7 @@ defmodule AcariServer.Hs do
   def handle_info({:ssl, sslsocket, frame}, state) do
     with <<1::1, _val::15, json::binary>> <- :erlang.list_to_binary(frame),
          {:ok, %{"id" => id, "link" => link}} when is_binary(id) and is_binary(link) <-
-           Poison.decode(json),
+           Jason.decode(json),
          {:ok, {ipaddr, port}} = :ssl.peername(sslsocket),
          Logger.info(
            "Listener: accept connection from #{:inet.ntoa(ipaddr)}:#{port}, id:#{id}, link:#{link}"
