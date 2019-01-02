@@ -189,7 +189,7 @@ defmodule Acari.TunMan do
 
       {link_name, snd_pid} = new_link ->
         Iface.set_sslink_snd_pid(state.iface_pid, snd_pid)
-        Logger.debug("#{state.tun_name}: New current link: #{link_name}")
+        # Logger.debug("#{state.tun_name}: New current link: #{link_name}")
         %State{state | current_link: new_link}
 
       _ ->
