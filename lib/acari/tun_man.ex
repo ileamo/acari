@@ -342,7 +342,16 @@ defmodule Acari.TunMan do
 
   def send_json_request(tun_name, payload) do
     {:ok, json} = Jason.encode(payload)
-    GenServer.cast(via(tun_name), {:send_tun_com, Const.json_req(), json})
+    send_tun_com(tun_name, Const.json_req(), json)
+  end
+
+  def send_master_mes(tun_name, payload) do
+    {:ok, json} = Jason.encode(payload)
+    GenServer.cast(via(tun_name), {:send_tun_com, Const.master_mes(), json})
+  end
+
+  def send_tun_com(tun_name, com, payload) do
+    GenServer.cast(via(tun_name), {:send_tun_com, com, payload})
   end
 
   def ip_address(com, tun_name, ifaddr) do
