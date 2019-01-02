@@ -33,6 +33,9 @@ defmodule Acari.Iface do
     {:ok, ifsocket} = :tuncer.create(<<>>, [:tun, :no_pi, active: true])
     :tuncer.persist(ifsocket, false)
     ifname = :tuncer.devname(ifsocket)
+    Logger.info("#{tun_name}: iface #{ifname}: up")
+    :ok = if_up(ifname)
+    Logger.info("#{tun_name}: iface #{ifname}: up end")
     {:ok, ifsnd_pid} = Acari.IfaceSnd.start_link(%{ifsocket: ifsocket})
 
     #       System.cmd(
