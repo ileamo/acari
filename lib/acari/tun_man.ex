@@ -252,13 +252,11 @@ defmodule Acari.TunMan do
         GenServer.cast(state.master_pid, {:tun_mes, state.tun_name, payload})
 
       Const.json_req() ->
-        state = exec_json_req(state, payload)
+        exec_json_req(state, payload)
 
       _ ->
         Logger.warn("#{state.tun_name}: Bad command: #{com}")
     end
-
-    state
   end
 
   defp exec_json_req(state, json) do
