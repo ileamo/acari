@@ -23,7 +23,7 @@ defmodule Acari.MixProject do
   defp deps do
     [
       {:tunctl, git: "https://github.com/msantos/tunctl.git"},
-      {:poison, "~> 4.0.1"},
+      {:jason, "~> 1.0"},
       {:distillery, "~> 2.0"}
     ]
   end
