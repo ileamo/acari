@@ -4,7 +4,7 @@ defmodule Acari.MixProject do
   def project do
     [
       app: :acari,
-      version: "0.1.0",
+      version: "0.1.1",
       elixir: "~> 1.7",
       start_permanent: Mix.env() == :prod,
       deps: deps()
@@ -14,8 +14,6 @@ defmodule Acari.MixProject do
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
-      #extra_applications: [:logger, :ssl],
-      #mod: {Acari.Application, []}
     ]
   end
 
@@ -23,8 +21,7 @@ defmodule Acari.MixProject do
   defp deps do
     [
       {:tunctl, git: "https://github.com/msantos/tunctl.git"},
-      {:jason, "~> 1.0"},
-      {:distillery, "~> 2.0"}
+      {:jason, "~> 1.0"}
     ]
   end
 end
