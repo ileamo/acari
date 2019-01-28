@@ -16,6 +16,8 @@ defmodule Acari.TunMan do
       :ifsnd_pid,
       :sslink_sup_pid,
       :sslinks,
+      :send_peer_started,
+      :peer_params,
       current_link: {nil, nil}
     ]
   end
@@ -45,17 +47,18 @@ defmodule Acari.TunMan do
     {:ok, sslink_sup_pid} = Supervisor.start_child(tun_sup_pid, SSLinkSup)
     Process.link(sslink_sup_pid)
 
-    GenServer.cast(state.master_pid, {:tun_started, {state.tun_name, ifname}})
+    state = %{
+      state
+      | sslinks: sslinks,
+        ifname: ifname,
+        iface_pid: iface_pid,
+        ifsnd_pid: ifsnd_pid,
+        sslink_sup_pid: sslink_sup_pid
+    }
 
-    {:noreply,
-     %{
-       state
-       | sslinks: sslinks,
-         ifname: ifname,
-         iface_pid: iface_pid,
-         ifsnd_pid: ifsnd_pid,
-         sslink_sup_pid: sslink_sup_pid
-     }}
+    GenServer.cast(state.master_pid, {:tun_started, state})
+
+    {:noreply, state}
   end
 
   @impl true
@@ -64,10 +67,22 @@ defmodule Acari.TunMan do
         %State{sslinks: sslinks, iface_pid: iface_pid} = state
       ) do
     true = :ets.update_element(sslinks, name, {3, pid})
+    sslink_opened(state, name, :ets.info(sslinks, :size))
 
     case state.current_link do
       {nil, _} ->
         Iface.set_sslink_snd_pid(iface_pid, pid)
+
+        state =
+          case state.send_peer_started do
+            true ->
+              state
+
+            _ ->
+              send_tun_com(self(), Const.peer_started(), "")
+              %State{state | send_peer_started: true}
+          end
+
         {:noreply, %State{state | current_link: {name, pid}}}
 
       _ ->
@@ -79,6 +94,7 @@ defmodule Acari.TunMan do
         {:set_sslink_params, name, params},
         %State{sslinks: sslinks} = state
       ) do
+    # TODO if no element
     elem = :ets.lookup_element(sslinks, name, 4)
     true = :ets.update_element(sslinks, name, {4, elem |> Map.merge(params)})
 
@@ -91,16 +107,26 @@ defmodule Acari.TunMan do
   end
 
   def handle_cast({:send_tun_com, com, payload}, %{current_link: {_, sslink_snd_pid}} = state) do
+    Logger.debug(
+      "#{state.tun_name}: Send com #{com}: #{inspect(payload)}, pid = #{inspect(sslink_snd_pid)}"
+    )
+
     Acari.SSLinkSnd.send(sslink_snd_pid, <<Const.tun_mask()::2, com::14>>, payload)
     {:noreply, state}
   end
 
   def handle_cast({:recv_tun_com, com, payload}, state) do
+    Logger.debug("#{state.tun_name}: Receive com #{com}: #{inspect(payload)}")
     {:noreply, exec_tun_com(state, com, payload)}
   end
 
   def handle_cast({:ip_address, com, ifaddr}, state) do
     ip_address_p(state, com, ifaddr)
+    {:noreply, state}
+  end
+
+  def handle_cast(mes, state) do
+    Logger.error(" Bad message: #{inspect(mes)} #{inspect(state)}")
     {:noreply, state}
   end
 
@@ -138,7 +164,7 @@ defmodule Acari.TunMan do
   end
 
   def handle_call(:get_all_links, _from, %State{sslinks: sslinks} = state) do
-    res = :ets.match_object(sslinks, {:_, :_, :_, :_})
+    res = :ets.match(sslinks, {:"$1", :_, :_, :"$2"})
     {:reply, res, state}
   end
 
@@ -147,29 +173,39 @@ defmodule Acari.TunMan do
   end
 
   @impl true
-  def handle_info({:EXIT, pid, reason}, %State{iface_pid: pid} = state) do
-    {:stop, {:iface_exit, reason}, state}
+  def handle_info({:EXIT, pid, _reason}, %State{iface_pid: pid} = state) do
+    {:stop, :shutdown, state}
   end
 
-  def handle_info({:EXIT, pid, reason}, %State{sslink_sup_pid: pid} = state) do
-    {:stop, {:sslink_sup_exit, reason}, state}
+  def handle_info({:EXIT, pid, _reason}, %State{sslink_sup_pid: pid} = state) do
+    {:stop, :shutdown, state}
   end
 
   def handle_info({:EXIT, pid, _reason}, %State{sslinks: sslinks} = state) do
-    case :ets.match(sslinks, {:"$1", pid, :_, :"$2"}) do
-      [[name, %{restart: restart}]] when restart == 0 ->
-        :ets.delete(sslinks, name)
+    name =
+      case :ets.match(sslinks, {:"$1", pid, :_, :"$2"}) do
+        [[name, %{restart: restart}]] when restart == 0 ->
+          :ets.delete(sslinks, name)
+          name
 
-      [[name, %{connector: connector, restart: timestamp}]] ->
-        if((delta = :erlang.system_time(:second) - timestamp) >= 10) do
-          update_sslink(state, name, connector)
-        else
-          Process.send_after(self(), {:EXIT, pid, :restart}, (10 - delta) * 1000)
-        end
+        [[name, %{connector: connector, restart: timestamp}]] ->
+          # remove latency
+          elem = :ets.lookup_element(sslinks, name, 4)
+          true = :ets.update_element(sslinks, name, {4, elem |> Map.delete(:latency)})
 
-      [] ->
-        nil
-    end
+          if((delta = :erlang.system_time(:second) - timestamp) >= 10) do
+            update_sslink(state, name, connector)
+          else
+            Process.send_after(self(), {:EXIT, pid, :restart}, (10 - delta) * 1000)
+          end
+
+          name
+
+        [] ->
+          nil
+      end
+
+    sslink_closed(state, name, :ets.info(sslinks, :size))
 
     {:noreply, update_best_link(state)}
   end
@@ -187,13 +223,14 @@ defmodule Acari.TunMan do
       {^prev_link_name, _} ->
         state
 
-      {link_name, snd_pid} = new_link ->
+      {_link_name, snd_pid} = new_link ->
         Iface.set_sslink_snd_pid(state.iface_pid, snd_pid)
-        Logger.debug("#{state.tun_name}: New current link: #{link_name}")
+        # Logger.debug("#{state.tun_name}: New current link: #{link_name}")
         %State{state | current_link: new_link}
 
       _ ->
-        state
+        # Logger.debug("#{state.tun_name}: New current link: <NO LINK>")
+        %State{state | current_link: {nil, nil}}
     end
   end
 
@@ -214,36 +251,39 @@ defmodule Acari.TunMan do
            sslinks: sslinks,
            iface_pid: iface_pid,
            sslink_sup_pid: sslink_sup_pid
-         },
+         } = state,
          name,
          connector
        ) do
-    {:ok, pid} =
-      DynamicSupervisor.start_child(
-        sslink_sup_pid,
-        {SSLink,
-         %{
-           name: name,
-           connector: connector,
-           tun_name: tun_name,
-           tun_man_pid: self(),
-           iface_pid: iface_pid
-         }}
-      )
-
-    true = Process.link(pid)
-
-    true =
-      :ets.insert(
-        sslinks,
-        {name, pid, nil,
-         %{
-           connector: connector,
-           restart: if(connector.(:restart), do: :erlang.system_time(:second), else: 0)
-         }}
-      )
-
-    pid
+    with true <- Process.alive?(sslink_sup_pid),
+         {:ok, pid} <-
+           DynamicSupervisor.start_child(
+             sslink_sup_pid,
+             {SSLink,
+              %{
+                name: name,
+                connector: connector,
+                tun_name: tun_name,
+                tun_man_pid: self(),
+                iface_pid: iface_pid
+              }}
+           ),
+         true <- Process.link(pid),
+         true <-
+           :ets.insert(
+             sslinks,
+             {name, pid, nil,
+              %{
+                connector: connector,
+                restart: if(connector.(:restart), do: :erlang.system_time(:second), else: 0)
+              }}
+           ) do
+      pid
+    else
+      res ->
+        Logger.warn("update_sslink: #{inspect(res)}")
+        nil
+    end
   end
 
   defp exec_tun_com(state, com, payload) do
@@ -251,8 +291,11 @@ defmodule Acari.TunMan do
       Const.master_mes() ->
         GenServer.cast(state.master_pid, {:tun_mes, state.tun_name, payload})
 
+      Const.peer_started() ->
+        GenServer.cast(state.master_pid, {:peer_started, state.tun_name})
+
       Const.json_req() ->
-        state = exec_json_req(state, payload)
+        exec_json_req(state, payload)
 
       _ ->
         Logger.warn("#{state.tun_name}: Bad command: #{com}")
@@ -262,7 +305,7 @@ defmodule Acari.TunMan do
   end
 
   defp exec_json_req(state, json) do
-    {:ok, %{"method" => method, "params" => params}} = Poison.decode(json)
+    {:ok, %{"method" => method, "params" => params}} = Jason.decode(json)
 
     exec_tun_method(state, method, params)
   end
@@ -286,7 +329,7 @@ defmodule Acari.TunMan do
 
   defp ip_address_p(%{ifname: ifname} = state, com, ifaddr) when com in [:add, :del] do
     com = "#{mk_ifaddr("ip address #{com}", ifaddr)} dev #{ifname}"
-    Acari.exec_script(com)
+    Acari.exec_sh(com)
     state
   end
 
@@ -310,11 +353,21 @@ defmodule Acari.TunMan do
     com
   end
 
+  defp sslink_opened(state, name, num) do
+    Acari.LinkEventAgent.event(:open, state.tun_name, name, num)
+    GenServer.cast(state.master_pid, {:sslink_opened, state.tun_name, name, num})
+  end
+
+  defp sslink_closed(state, name, num) do
+    Acari.LinkEventAgent.event(:close, state.tun_name, name, num)
+    GenServer.cast(state.master_pid, {:sslink_closed, state.tun_name, name, num})
+  end
+
   # Client
   def add_link(tun_name, link_name, connector) do
     case Registry.lookup(Registry.TunMan, tun_name) do
       [{pid, _}] ->
-        GenServer.call(pid, {:add_link, link_name, connector})
+        GenServer.call(pid, {:add_link, link_name, connector}, 60 * 1000)
 
       _ ->
         Logger.error("Add link: No such tunnel: #{tun_name}")
@@ -343,8 +396,21 @@ defmodule Acari.TunMan do
   end
 
   def send_json_request(tun_name, payload) do
-    {:ok, json} = Poison.encode(payload)
-    GenServer.cast(via(tun_name), {:send_tun_com, Const.json_req(), json})
+    {:ok, json} = Jason.encode(payload)
+    send_tun_com(tun_name, Const.json_req(), json)
+  end
+
+  def send_master_mes(tun_name, payload) do
+    {:ok, json} = Jason.encode(payload)
+    GenServer.cast(via(tun_name), {:send_tun_com, Const.master_mes(), json})
+  end
+
+  def send_tun_com(pid, com, payload) when is_pid(pid) do
+    GenServer.cast(pid, {:send_tun_com, com, payload})
+  end
+
+  def send_tun_com(tun_name, com, payload) do
+    GenServer.cast(via(tun_name), {:send_tun_com, com, payload})
   end
 
   def ip_address(com, tun_name, ifaddr) do

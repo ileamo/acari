@@ -33,6 +33,7 @@ defmodule Acari.Iface do
     {:ok, ifsocket} = :tuncer.create(<<>>, [:tun, :no_pi, active: true])
     :tuncer.persist(ifsocket, false)
     ifname = :tuncer.devname(ifsocket)
+    :ok = if_up(ifname)
     {:ok, ifsnd_pid} = Acari.IfaceSnd.start_link(%{ifsocket: ifsocket})
 
     #       System.cmd(
@@ -54,7 +55,13 @@ defmodule Acari.Iface do
 
   @impl true
   def handle_cast({:set_sslink_snd_pid, sslink_snd_pid}, state) do
-    if !state.up, do: :ok = if_up(state.ifname)
+    state =
+      if !state.up do
+        :ok = if_up(state.ifname)
+        %State{state | up: true}
+      else
+        state
+      end
 
     {:noreply, %State{state | sslink_snd_pid: sslink_snd_pid}}
   end
@@ -97,13 +104,18 @@ defmodule Acari.Iface do
     {:noreply, state}
   end
 
+  @impl true
+  def terminate(_reason, %{ifsocket: ifsocket}) do
+    :tuncer.destroy(ifsocket)
+  end
+
   # client
   def set_sslink_snd_pid(iface_pid, sslink_snd_pid) do
     GenServer.cast(iface_pid, {:set_sslink_snd_pid, sslink_snd_pid})
   end
 
   def get_if_info(iface_pid) do
-    GenServer.call(iface_pid, :get_if_info)
+    GenServer.call(iface_pid, :get_if_info, 60 * 1000)
   end
 
   defp if_up(ifname), do: if_set_admstate(ifname, "up")
