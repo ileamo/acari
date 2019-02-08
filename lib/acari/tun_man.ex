@@ -311,10 +311,10 @@ defmodule Acari.TunMan do
   defp decode_mes_plus(payload, list \\ []) do
     case payload do
       <<len::16, first::binary-size(len), rest::binary>> ->
-        decode_mes_plus(rest, list ++ first)
+        decode_mes_plus(rest, [first | list])
 
       _ ->
-        list
+        list |> Enum.reverse()
     end
   end
 
