@@ -289,7 +289,11 @@ defmodule Acari.TunMan do
   defp exec_tun_com(state, com, payload) do
     case com do
       Const.master_mes() ->
-        GenServer.cast(state.master_pid, {:tun_mes, state.tun_name, payload})
+        GenServer.cast(state.master_pid, {:master_mes, state.tun_name, payload})
+
+      Const.master_mes_plus() ->
+        [main | attach] = decode_mes_plus(payload)
+        GenServer.cast(state.master_pid, {:master_mes_plus, state.tun_name, main, attach})
 
       Const.peer_started() ->
         GenServer.cast(state.master_pid, {:peer_started, state.tun_name})
@@ -302,6 +306,16 @@ defmodule Acari.TunMan do
     end
 
     state
+  end
+
+  defp decode_mes_plus(payload, list \\ []) do
+    case payload do
+      <<len::16, first::binary-size(len), rest::binary>> ->
+        decode_mes_plus(rest, list ++ first)
+
+      _ ->
+        list
+    end
   end
 
   defp exec_json_req(state, json) do
@@ -403,6 +417,15 @@ defmodule Acari.TunMan do
   def send_master_mes(tun_name, payload) do
     {:ok, json} = Jason.encode(payload)
     GenServer.cast(via(tun_name), {:send_tun_com, Const.master_mes(), json})
+  end
+
+  def send_master_mes_plus(tun_name, main, attach \\ []) do
+    {:ok, json} = Jason.encode(main)
+
+    payload =
+      [json | attach] |> Enum.reduce("", fn mes, acc -> acc <> <<byte_size(mes)::16>> <> mes end)
+
+    GenServer.cast(via(tun_name), {:send_tun_com, Const.master_mes_plus(), payload})
   end
 
   def send_tun_com(pid, com, payload) when is_pid(pid) do
