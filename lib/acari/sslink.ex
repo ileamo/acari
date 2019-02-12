@@ -113,6 +113,7 @@ defmodule Acari.SSLink do
       schedule_ping()
       {:noreply, state}
     else
+      Logger.info("#{state.tun_name}: #{state.name}: Closed(keepalive)")
       {:stop, :shutdown, state}
     end
   end
