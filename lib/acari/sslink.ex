@@ -84,7 +84,8 @@ defmodule Acari.SSLink do
     {:stop, :shutdown, state}
   end
 
-  def handle_info({:ssl_error, _sslsocket, _reason}, state) do
+  def handle_info({:ssl_error, _sslsocket, reason}, %{name: name, tun_name: tun_name} = state) do
+    Logger.error("#{tun_name}: #{name}: #{inspect(reason)}")
     {:stop, :shutdown, state}
   end
 
