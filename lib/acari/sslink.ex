@@ -5,6 +5,8 @@ defmodule Acari.SSLink do
   alias Acari.Iface
   alias Acari.TunMan
 
+  @max_silent_tmo 15 * 1000 * 1000
+
   defmodule State do
     defstruct [
       :name,
@@ -16,7 +18,8 @@ defmodule Acari.SSLink do
       :iface_pid,
       :ifsnd_pid,
       :sslsocket,
-      :latency
+      :latency,
+      :echo_reply_tms
     ]
   end
 
@@ -47,7 +50,14 @@ defmodule Acari.SSLink do
     schedule_ping()
 
     {:noreply,
-     %{state | pid: self(), sslsocket: sslsocket, snd_pid: snd_pid, ifsnd_pid: ifsnd_pid}}
+     %{
+       state
+       | pid: self(),
+         sslsocket: sslsocket,
+         snd_pid: snd_pid,
+         ifsnd_pid: ifsnd_pid,
+         echo_reply_tms: :erlang.system_time(:microsecond)
+     }}
   end
 
   @impl true
@@ -89,16 +99,22 @@ defmodule Acari.SSLink do
     {:stop, :shutdown, state}
   end
 
-  def handle_info(:ping, state) do
-    send_link_command(
-      state,
-      Const.echo_request(),
-      <<:erlang.system_time(:microsecond)::64>>
-    )
+  def handle_info(:ping, %{echo_reply_tms: last_req_tms} = state) do
+    tms = :erlang.system_time(:microsecond)
 
-    # Reschedule once more
-    schedule_ping()
-    {:noreply, state}
+    if tms - last_req_tms < @max_silent_tmo do
+      send_link_command(
+        state,
+        Const.echo_request(),
+        <<tms::64>>
+      )
+
+      # Reschedule once more
+      schedule_ping()
+      {:noreply, state}
+    else
+      {:stop, :shutdown, state}
+    end
   end
 
   def handle_info(msg, state) do
@@ -139,9 +155,10 @@ defmodule Acari.SSLink do
     case com do
       Const.echo_reply() ->
         <<n::64>> = data
-        latency = :erlang.system_time(:microsecond) - n
+        tms = :erlang.system_time(:microsecond)
+        latency = tms - n
         TunMan.set_sslink_params(state.tun_man_pid, state.name, %{latency: latency})
-        %State{state | latency: latency}
+        %State{state | latency: latency, echo_reply_tms: tms}
 
       Const.echo_request() ->
         send_link_command(state, Const.echo_reply(), data)
