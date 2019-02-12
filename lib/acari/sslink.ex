@@ -19,7 +19,8 @@ defmodule Acari.SSLink do
       :ifsnd_pid,
       :sslsocket,
       :latency,
-      :echo_reply_tms
+      :echo_reply_tms,
+      :echo_reply_wait
     ]
   end
 
@@ -99,10 +100,15 @@ defmodule Acari.SSLink do
     {:stop, :shutdown, state}
   end
 
-  def handle_info(:ping, %{echo_reply_tms: last_req_tms} = state) do
+  def handle_info(:ping, %{echo_reply_tms: last_req_tms, echo_reply_wait: wte} = state) do
     tms = :erlang.system_time(:microsecond)
 
     if tms - last_req_tms < @max_silent_tmo do
+      if wte do
+        TunMan.set_sslink_params(state.tun_man_pid, state.name, %{latency: tms - last_req_tms})
+        Logger.debug("{state.tun_name}: #{state.name}: No echo reply")
+      end
+
       send_link_command(
         state,
         Const.echo_request(),
@@ -111,7 +117,7 @@ defmodule Acari.SSLink do
 
       # Reschedule once more
       schedule_ping()
-      {:noreply, state}
+      {:noreply, %State{state | echo_reply_wait: true}}
     else
       Logger.info("#{state.tun_name}: #{state.name}: Closed(keepalive)")
       {:stop, :shutdown, state}
@@ -159,7 +165,7 @@ defmodule Acari.SSLink do
         tms = :erlang.system_time(:microsecond)
         latency = tms - n
         TunMan.set_sslink_params(state.tun_man_pid, state.name, %{latency: latency})
-        %State{state | latency: latency, echo_reply_tms: tms}
+        %State{state | latency: latency, echo_reply_tms: tms, echo_reply_wait: nil}
 
       Const.echo_request() ->
         send_link_command(state, Const.echo_reply(), data)
