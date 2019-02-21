@@ -251,7 +251,7 @@ defmodule Acari.TunMan do
            sslinks: sslinks,
            iface_pid: iface_pid,
            sslink_sup_pid: sslink_sup_pid
-         } = state,
+         } = _state,
          name,
          connector
        ) do
