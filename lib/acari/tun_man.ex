@@ -94,14 +94,15 @@ defmodule Acari.TunMan do
         {:set_sslink_params, name, params},
         %State{sslinks: sslinks} = state
       ) do
-    # TODO if no element
-    elem = :ets.lookup_element(sslinks, name, 4)
-    true = :ets.update_element(sslinks, name, {4, elem |> Map.merge(params)})
+    state =
+      case :ets.lookup(sslinks, name) do
+        [{_, _, _, elem}] ->
+          true = :ets.update_element(sslinks, name, {4, elem |> Map.merge(params)})
+          if params[:latency], do: update_best_link(state), else: state
 
-    # get best link
-    # TODO if  new letency set
-
-    state = if params[:latency], do: update_best_link(state), else: state
+        _ ->
+          state
+      end
 
     {:noreply, state}
   end
