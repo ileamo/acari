@@ -50,7 +50,11 @@ defmodule Acari.LinkEventAgent do
   end
 
   def get() do
-    Agent.get(__MODULE__, fn state -> state end)
+    Agent.get(__MODULE__, __MODULE__, :get_state, [])
+  end
+
+  def get_state(state) do
+    state
   end
 
   def get_length() do
