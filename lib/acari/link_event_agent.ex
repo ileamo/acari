@@ -38,7 +38,7 @@ defmodule Acari.LinkEventAgent do
   end
 
   def event(:close, tun, link, num) when binary_part(tun, 0, 2) != "cl" do
-    timestamp = get_local_time()
+    timestamp = :os.system_time(:second)
     put({tun, link, timestamp})
 
     if num == 0 do
