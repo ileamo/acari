@@ -169,6 +169,10 @@ defmodule Acari.TunMan do
     {:reply, res, state}
   end
 
+  def handle_call(:get_state, _from, state) do
+    {:reply, state, state}
+  end
+
   def handle_call(request, _from, state) do
     {:reply, {:error, "Bad request #{inspect(request)}"}, state}
   end
@@ -396,6 +400,10 @@ defmodule Acari.TunMan do
 
   def get_all_links(tun_name) do
     GenServer.call(via(tun_name), :get_all_links)
+  end
+
+  def get_state(tun_name) do
+    GenServer.call(via(tun_name), :get_state)
   end
 
   def set_sslink_snd_pid(tun_pid, name, pid) do

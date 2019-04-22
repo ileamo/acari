@@ -129,6 +129,7 @@ end
 
 defmodule Acari.IfaceSnd do
   use GenServer
+  require Logger
 
   def start_link(params) do
     GenServer.start_link(__MODULE__, params)
@@ -144,6 +145,12 @@ defmodule Acari.IfaceSnd do
   def handle_cast({:send, packet}, state = %{ifsocket: ifsocket}) do
     :tuncer.send(ifsocket, packet)
     {:noreply, state}
+  end
+
+  @impl true
+  def handle_info(msg, state) do
+    Logger.warn("#{state.tun_name}: iface #{state.ifname}: unexpected message: #{inspect(msg)}")
+    {:noreplay, state}
   end
 
   # Client
