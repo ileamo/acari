@@ -150,7 +150,7 @@ defmodule Acari.IfaceSnd do
   @impl true
   def handle_info(msg, state) do
     Logger.warn("#{state.tun_name}: IfaceSnd: unexpected message: #{inspect(msg)}")
-    {:noreplay, state}
+    {:noreply, state}
   end
 
   # Client
