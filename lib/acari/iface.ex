@@ -119,7 +119,7 @@ defmodule Acari.Iface do
   end
 
   defp if_up(ifname), do: if_set_admstate(ifname, "up")
-  #defp if_down(ifname), do: if_set_admstate(ifname, "down")
+  # defp if_down(ifname), do: if_set_admstate(ifname, "down")
 
   defp if_set_admstate(ifname, admstate) do
     {_, 0} = System.cmd("ip", ["link", "set", ifname, admstate], stderr_to_stdout: true)
@@ -137,7 +137,8 @@ defmodule Acari.IfaceSnd do
 
   ## Callbacks
   @impl true
-  def init(state) do
+  def init(%{tun_name: tun_name} = state) do
+    Phoenix.PubSub.subscribe(AcariServer.PubSub, tun_name)
     {:ok, state}
   end
 
