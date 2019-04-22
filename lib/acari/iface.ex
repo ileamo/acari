@@ -34,7 +34,7 @@ defmodule Acari.Iface do
     :tuncer.persist(ifsocket, false)
     ifname = :tuncer.devname(ifsocket)
     :ok = if_up(ifname)
-    {:ok, ifsnd_pid} = Acari.IfaceSnd.start_link(%{ifsocket: ifsocket})
+    {:ok, ifsnd_pid} = Acari.IfaceSnd.start_link(%{tun_name: tun_name, ifsocket: ifsocket})
 
     #       System.cmd(
     #       "ip",
@@ -149,7 +149,7 @@ defmodule Acari.IfaceSnd do
 
   @impl true
   def handle_info(msg, state) do
-    Logger.warn("#{state.tun_name}: iface #{state.ifname}: unexpected message: #{inspect(msg)}")
+    Logger.warn("#{state.tun_name}: IfaceSnd: unexpected message: #{inspect(msg)}")
     {:noreplay, state}
   end
 
