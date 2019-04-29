@@ -212,7 +212,7 @@ defmodule Acari.TunMan do
 
   def handle_info(mes, state) do
     Logger.warn("Unexpected info message: #{inspect(mes)}")
-    {:noreplay, state}
+    {:noreply, state}
   end
 
   # Private
