@@ -334,12 +334,10 @@ defmodule Acari.TunMan do
   end
 
   defp sslink_opened(state, name, num) do
-    Acari.LinkEventAgent.event(:open, state.tun_name, name, num)
     GenServer.cast(state.master_pid, {:sslink_opened, state.tun_name, name, num})
   end
 
   defp sslink_closed(state, name, num) do
-    Acari.LinkEventAgent.event(:close, state.tun_name, name, num)
     GenServer.cast(state.master_pid, {:sslink_closed, state.tun_name, name, num})
   end
 

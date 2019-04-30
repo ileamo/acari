@@ -10,7 +10,6 @@ defmodule Acari.Sup do
     children = [
       {Registry, keys: :unique, name: Registry.TunMan},
       {Registry, keys: :unique, name: Registry.TunSup},
-      Acari.LinkEventAgent,
       Acari.TunsSup
     ]
 
