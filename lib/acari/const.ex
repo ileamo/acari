@@ -20,6 +20,7 @@ defmodule Acari.Const do
   # Link messages
   defmacro echo_reply, do: 0
   defmacro echo_request, do: 1
+  defmacro prio, do: 2
 
   # tun messages
   defmacro master_mes, do: 0

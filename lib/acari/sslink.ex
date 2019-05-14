@@ -20,7 +20,8 @@ defmodule Acari.SSLink do
       :sslsocket,
       :latency,
       :echo_reply_tms,
-      :echo_reply_wait
+      :echo_reply_wait,
+      prio: 0
     ]
   end
 
@@ -106,7 +107,7 @@ defmodule Acari.SSLink do
     if tms - last_req_tms < @max_silent_tmo do
       if wte do
         TunMan.set_sslink_params(state.tun_man_pid, state.name, %{latency: tms - last_req_tms})
-        Logger.debug("{state.tun_name}: #{state.name}: No echo reply")
+        Logger.debug("#{state.tun_name}: #{state.name}: No echo reply")
       end
 
       send_link_command(
@@ -170,6 +171,11 @@ defmodule Acari.SSLink do
       Const.echo_request() ->
         send_link_command(state, Const.echo_reply(), data)
         state
+
+      Const.prio() ->
+        <<prio::8>> = data
+        TunMan.set_sslink_params(state.tun_man_pid, state.name, %{prio: prio})
+        %State{state | prio: prio}
 
       _ ->
         Logger.warn(

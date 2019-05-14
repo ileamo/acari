@@ -116,6 +116,20 @@ defmodule Acari.TunMan do
     {:noreply, state}
   end
 
+  def handle_cast({:send_all_link_com, com, payload}, %State{sslinks: sslinks} = state) do
+    Logger.debug("#{state.tun_name}: Send com to all link #{com}: #{inspect(payload)}")
+
+    :ets.foldl(
+      fn {_, _, snd_pid, _}, _ ->
+        Acari.SSLinkSnd.send(snd_pid, <<Const.link_mask()::2, com::14>>, payload)
+      end,
+      nil,
+      sslinks
+    )
+
+    {:noreply, state}
+  end
+
   def handle_cast({:recv_tun_com, com, payload}, state) do
     Logger.debug("#{state.tun_name}: Receive com #{com}: #{inspect(payload)}")
     {:noreply, exec_tun_com(state, com, payload)}
@@ -235,14 +249,26 @@ defmodule Acari.TunMan do
   end
 
   defp get_best_link(sslinks) do
-    case :ets.match_object(sslinks, {:_, :_, :_, :_})
-         |> Enum.min_by(fn {_, _, _, parms} -> parms[:latency] end, fn -> nil end) do
-      {link, _, snd_pid, %{latency: lat}} when is_number(lat) ->
-        {link, snd_pid}
+    :ets.foldl(
+      fn {name, _pid, snd_pid, params}, {_best_link, best_params} = best ->
+        prio_new = params[:prio] || 0
+        prio_bst = best_params[:prio] || 0
 
-      _ ->
-        nil
-    end
+        cond do
+          prio_new > prio_bst ->
+            {{name, snd_pid}, %{prio: prio_new, latency: params[:latency]}}
+
+          prio_new == prio_bst and params[:latency] < best_params[:latency] ->
+            {{name, snd_pid}, %{prio: prio_new, latency: params[:latency]}}
+
+          true ->
+            best
+        end
+      end,
+      {nil, %{prio: -1}},
+      sslinks
+    )
+    |> elem(0)
   end
 
   defp update_sslink(
@@ -402,5 +428,9 @@ defmodule Acari.TunMan do
 
   def send_tun_com(tun_name, com, payload) do
     GenServer.cast(via(tun_name), {:send_tun_com, com, payload})
+  end
+
+  def send_all_link_com(tun_name, com, payload) do
+    GenServer.cast(via(tun_name), {:send_all_link_com, com, payload})
   end
 end
