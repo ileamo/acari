@@ -18,6 +18,7 @@ defmodule Acari.TunMan do
       :sslinks,
       :send_peer_started,
       :peer_params,
+      :iface_conf,
       current_link: {nil, nil}
     ]
   end
@@ -39,7 +40,12 @@ defmodule Acari.TunMan do
     sslinks = :ets.new(:sslinks, [:set, :protected])
     Process.flag(:trap_exit, true)
 
-    {:ok, iface_pid} = Supervisor.start_child(tun_sup_pid, {Iface, %{tun_name: state.tun_name}})
+    {:ok, iface_pid} =
+      Supervisor.start_child(
+        tun_sup_pid,
+        {Iface, %{tun_name: state.tun_name, ifname: state.iface_conf[:name]}}
+      )
+
     Process.link(iface_pid)
 
     {ifname, ifsnd_pid} = Iface.get_if_info(iface_pid)

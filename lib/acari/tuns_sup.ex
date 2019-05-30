@@ -11,13 +11,13 @@ defmodule Acari.TunsSup do
   end
 
   # Client
-  def start_tun(tun_name, master_pid \\ nil, peer_params \\ %{})
+  def start_tun(tun_name, master_pid, params \\ [])
 
-  def start_tun(tun_name, master_pid, peer_params) when is_binary(tun_name) do
-
+  def start_tun(tun_name, master_pid, params) when is_binary(tun_name) do
     case DynamicSupervisor.start_child(
            __MODULE__,
-           {Acari.TunSup, %{tun_name: tun_name, master_pid: master_pid, peer_params: peer_params}}
+           {Acari.TunSup,
+            params |> Enum.into(%{}) |> Map.merge(%{tun_name: tun_name, master_pid: master_pid})}
          ) do
       {:ok, _pid} -> :ok
       error -> error

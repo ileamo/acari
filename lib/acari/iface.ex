@@ -28,8 +28,9 @@ defmodule Acari.Iface do
 
   ## Callbacks
   @impl true
-  def init(%{tun_name: tun_name} = _params) do
-    {:ok, ifsocket} = :tuncer.create(<<>>, [:tun, :no_pi, active: true])
+  def init(%{tun_name: tun_name} = params) do
+    ifname = params[:ifname] || ""
+    {:ok, ifsocket} = :tuncer.create(ifname, [:tun, :no_pi, active: true])
     :tuncer.persist(ifsocket, false)
     ifname = :tuncer.devname(ifsocket)
     :ok = if_up(ifname)
