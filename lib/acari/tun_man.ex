@@ -118,7 +118,14 @@ defmodule Acari.TunMan do
       "#{state.tun_name}: Send com #{com}: #{inspect(payload)}, pid = #{inspect(sslink_snd_pid)}"
     )
 
-    Acari.SSLinkSnd.send(sslink_snd_pid, <<Const.tun_mask()::2, com::14>>, payload)
+    case Process.alive?(sslink_snd_pid) do
+      true ->
+        Acari.SSLinkSnd.send(sslink_snd_pid, Const.hd_tun_com(com), payload)
+
+      _ ->
+        Acari.Iface.redirect(state.tun_name, Const.hd_tun_com(com), payload)
+    end
+
     {:noreply, state}
   end
 
