@@ -118,7 +118,7 @@ defmodule Acari.TunMan do
       "#{state.tun_name}: Send com #{com}: #{inspect(payload)}, pid = #{inspect(sslink_snd_pid)}"
     )
 
-    case Process.alive?(sslink_snd_pid) do
+    case is_pid(sslink_snd_pid) and Process.alive?(sslink_snd_pid) do
       true ->
         Acari.SSLinkSnd.send(sslink_snd_pid, Const.hd_tun_com(com), payload)
 
