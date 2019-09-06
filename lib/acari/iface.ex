@@ -1,6 +1,6 @@
 defmodule Acari.Iface do
   require Logger
-  require Acari.Const
+  require Acari.Const, as: Const 
   use GenServer, restart: :temporary
 
   @moduledoc """
