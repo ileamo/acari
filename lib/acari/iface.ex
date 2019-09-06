@@ -1,5 +1,6 @@
 defmodule Acari.Iface do
   require Logger
+  require Acari.Const
   use GenServer, restart: :temporary
 
   @moduledoc """
@@ -76,13 +77,13 @@ defmodule Acari.Iface do
         {:noreply, state}
 
       _ ->
-        redirect(state, packet)
+        redirect(state.tun_name, Const.hd_data(), packet)
         {:noreply, %State{state | sslink_snd_pid: nil}}
     end
   end
 
   def handle_info({:tuntap, _pid, packet}, state) do
-    redirect(state, packet)
+    redirect(state.tun_name, Const.hd_data, packet)
     {:noreply, state}
   end
 
@@ -92,11 +93,11 @@ defmodule Acari.Iface do
     {:stop, :shutdown, state}
   end
 
-  def handle_info({:redirect, packet, used_nodes}, %{sslink_snd_pid: sslink_snd_pid} = state) do
+  def handle_info({:redirect, com, payload, used_nodes}, %{sslink_snd_pid: sslink_snd_pid} = state) do
     if is_pid(sslink_snd_pid) && Process.alive?(sslink_snd_pid) do
-      Acari.SSLinkSnd.send(sslink_snd_pid, packet)
+      Acari.SSLinkSnd.send(sslink_snd_pid, com, payload)
     else
-      redirect(state, packet, used_nodes)
+      redirect(state.tun_name, com, payload, used_nodes)
     end
 
     {:noreply, state}
@@ -129,15 +130,15 @@ defmodule Acari.Iface do
     :ok
   end
 
-  defp redirect(state, packet, used_nodes \\ []) do
+  def redirect(tun_name, com, payload, used_nodes \\ []) do
     case Node.list() -- used_nodes do
       [node | _] ->
         Phoenix.PubSub.direct_broadcast_from(
           node,
           AcariServer.PubSub,
           self(),
-          "rcv:#{state.tun_name}",
-          {:redirect, packet, [node() | used_nodes]}
+          "rcv:#{tun_name}",
+          {:redirect, com, payload, [node() | used_nodes]}
         )
 
       _ ->

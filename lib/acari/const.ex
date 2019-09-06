@@ -5,13 +5,19 @@ defmodule Acari.Const do
   defmacro tun_mask, do: @tun_mask
   defmacro link_mask, do: @link_mask
 
-  defmacro tun_com(com) do
+  defmacro hd_data() do
+    quote do
+      <<0::16>>
+    end
+  end
+
+  defmacro hd_tun_com(com) do
     quote do
       <<unquote(@tun_mask)::2, unquote(com)::14>>
     end
   end
 
-  defmacro link_com(com) do
+  defmacro hd_link_com(com) do
     quote do
       <<unquote(@link_mask)::2, unquote(com)::14>>
     end
