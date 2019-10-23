@@ -144,7 +144,7 @@ defmodule Acari.TunMan do
   end
 
   def handle_cast({:recv_tun_com, com, payload}, state) do
-    Logger.debug("#{state.tun_name}: Receive com #{com}: #{inspect(payload)}")
+    #Logger.debug("#{state.tun_name}: Receive com #{com}: #{inspect(payload)}")
     {:noreply, exec_tun_com(state, com, payload)}
   end
 
