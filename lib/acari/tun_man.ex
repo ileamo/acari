@@ -115,7 +115,7 @@ defmodule Acari.TunMan do
 
   def handle_cast({:send_tun_com, com, payload}, %{current_link: {_, sslink_snd_pid}} = state) do
     Logger.debug(
-      "#{state.tun_name}: Send com #{com}: #{inspect(payload)}, pid = #{inspect(sslink_snd_pid)}"
+      "#{state.tun_name}: Send com #{com} pid = #{inspect(sslink_snd_pid)}"
     )
 
     case is_pid(sslink_snd_pid) and Process.alive?(sslink_snd_pid) do
@@ -144,7 +144,7 @@ defmodule Acari.TunMan do
   end
 
   def handle_cast({:recv_tun_com, com, payload}, state) do
-    Logger.info("#{state.tun_name}: Receive com #{com}: #{inspect(payload)}")
+    Logger.debug("#{state.tun_name}: Receive com #{com}")
     {:noreply, exec_tun_com(state, com, payload)}
   end
 
