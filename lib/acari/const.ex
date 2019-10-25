@@ -33,4 +33,6 @@ defmodule Acari.Const do
   defmacro json_req, do: 1
   defmacro peer_started, do: 2
   defmacro master_mes_plus, do: 3
+  defmacro tun_alive_request, do: 4
+  defmacro tun_alive_reply, do: 5
 end

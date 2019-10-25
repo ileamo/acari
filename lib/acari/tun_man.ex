@@ -416,6 +416,11 @@ defmodule Acari.TunMan do
     GenServer.cast(tun_pid, {:recv_tun_com, com, payload})
   end
 
+  def send_tun_alive_request(tun_name) do
+    tms = :erlang.system_time(:microsecond)
+    send_tun_com(tun_name, Const.tun_alive_request(), <<tms::64>>)
+  end
+
   def send_json_request(tun_name, payload) do
     {:ok, json} = Jason.encode(payload)
     send_tun_com(tun_name, Const.json_req(), json)
