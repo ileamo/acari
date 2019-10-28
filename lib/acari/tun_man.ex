@@ -114,9 +114,7 @@ defmodule Acari.TunMan do
   end
 
   def handle_cast({:send_tun_com, com, payload}, %{current_link: {_, sslink_snd_pid}} = state) do
-    Logger.debug(
-      "#{state.tun_name}: Send com #{com} pid = #{inspect(sslink_snd_pid)}"
-    )
+    Logger.debug("#{state.tun_name}: Send com #{com} pid = #{inspect(sslink_snd_pid)}")
 
     case is_pid(sslink_snd_pid) and Process.alive?(sslink_snd_pid) do
       true ->
@@ -294,35 +292,33 @@ defmodule Acari.TunMan do
          name,
          connector
        ) do
-    with true <- Process.alive?(sslink_sup_pid),
-         {:ok, pid} <-
-           DynamicSupervisor.start_child(
-             sslink_sup_pid,
-             {SSLink,
-              %{
-                name: name,
-                connector: connector,
-                tun_name: tun_name,
-                tun_man_pid: self(),
-                iface_pid: iface_pid
-              }}
-           ),
-         true <- Process.link(pid),
-         true <-
-           :ets.insert(
-             sslinks,
-             {name, pid, nil,
-              %{
-                connector: connector,
-                restart: if(connector.(:restart), do: :erlang.system_time(:second), else: 0)
-              }}
-           ) do
-      pid
-    else
-      res ->
-        Logger.warn("update_sslink: #{inspect(res)}")
-        nil
-    end
+    # true = Process.alive?(sslink_sup_pid)
+    {:ok, pid} =
+      DynamicSupervisor.start_child(
+        sslink_sup_pid,
+        {SSLink,
+         %{
+           name: name,
+           connector: connector,
+           tun_name: tun_name,
+           tun_man_pid: self(),
+           iface_pid: iface_pid
+         }}
+      )
+
+    true = Process.link(pid)
+
+    true =
+      :ets.insert(
+        sslinks,
+        {name, pid, nil,
+         %{
+           connector: connector,
+           restart: if(connector.(:restart), do: :erlang.system_time(:second), else: 0)
+         }}
+      )
+
+    pid
   end
 
   defp exec_tun_com(state, com, payload) do
