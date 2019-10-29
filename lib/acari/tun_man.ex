@@ -242,10 +242,10 @@ defmodule Acari.TunMan do
 
   # Private
   defp update_best_link(state) do
-    {prev_link_name, _} = state.current_link
+    {prev_link_name, prev_pid} = state.current_link
 
     case get_best_link(state.sslinks) do
-      {^prev_link_name, _} ->
+      {^prev_link_name, ^prev_pid} ->
         state
 
       {_link_name, snd_pid} = new_link ->
