@@ -213,8 +213,15 @@ defmodule Acari.SSLinkSnd do
       :ok ->
         {:noreply, state}
 
+      {:error, {:badarg, {:packet_to_large, size, _max}}} ->
+        Logger.error(
+          "#{state.tun_name}: #{state.name}: Can't send to SSL socket: packet_to_large: #{size} bytes"
+        )
+
+        {:noreply, state}
+
       {:error, reason} ->
-        Logger.warn(
+        Logger.error(
           "#{state.tun_name}: #{state.name}: Can't send to SSL socket: #{inspect(reason)}"
         )
 
