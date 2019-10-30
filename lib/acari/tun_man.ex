@@ -266,6 +266,7 @@ defmodule Acari.TunMan do
         prio_bst = best_params[:prio] || 0
 
         cond do
+          !params[:latency] -> best
           prio_new > prio_bst ->
             {{name, snd_pid}, %{prio: prio_new, latency: params[:latency]}}
 
