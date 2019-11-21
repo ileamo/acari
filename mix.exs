@@ -20,7 +20,7 @@ defmodule Acari.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:tunctl, git: "https://github.com/msantos/tunctl.git"},
+      {:tunctl, git: "https://github.com/ileamo/tunctl.git"},
       {:jason, "~> 1.0"}
     ]
   end
