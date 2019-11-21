@@ -83,7 +83,7 @@ defmodule Acari.Iface do
   end
 
   def handle_info({:tuntap, _pid, packet}, state) do
-    redirect(state.tun_name, Const.hd_data, packet)
+    redirect(state.tun_name, Const.hd_data(), packet)
     {:noreply, state}
   end
 
@@ -93,7 +93,10 @@ defmodule Acari.Iface do
     {:stop, :shutdown, state}
   end
 
-  def handle_info({:redirect, com, payload, used_nodes}, %{sslink_snd_pid: sslink_snd_pid} = state) do
+  def handle_info(
+        {:redirect, com, payload, used_nodes},
+        %{sslink_snd_pid: sslink_snd_pid} = state
+      ) do
     if is_pid(sslink_snd_pid) && Process.alive?(sslink_snd_pid) do
       Acari.SSLinkSnd.send(sslink_snd_pid, com, payload)
     else
