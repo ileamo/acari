@@ -193,7 +193,7 @@ defmodule Acari.SSLink do
   end
 
   defp schedule_ping() do
-    Process.send_after(self(), :ping, Enum.random(4000..6000))
+    Process.send_after(self(), :ping, Enum.random(5000))
   end
 end
 
