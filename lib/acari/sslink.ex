@@ -5,7 +5,7 @@ defmodule Acari.SSLink do
   alias Acari.Iface
   alias Acari.TunMan
 
-  @max_silent_tmo 15 * 1000 * 1000
+  @max_silent_tmo 30 * 1000 * 1000
 
   defmodule State do
     defstruct [
