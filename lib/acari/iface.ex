@@ -30,6 +30,7 @@ defmodule Acari.Iface do
   ## Callbacks
   @impl true
   def init(%{tun_name: tun_name} = params) do
+    IO.inspect(params, label: "Iface params")
     ifname = params[:ifname] || ""
     {:ok, ifsocket} = :tuncer.create(ifname, [:tun, :no_pi, active: true])
     :tuncer.persist(ifsocket, false)

@@ -36,6 +36,7 @@ defmodule Acari.TunMan do
 
   @impl true
   def handle_continue(:init, %{tun_sup_pid: tun_sup_pid} = state) do
+    IO.inspect(state)
     Logger.info("#{state.tun_name}: Tunnel (re)started")
     sslinks = :ets.new(:sslinks, [:set, :protected])
     Process.flag(:trap_exit, true)
@@ -43,7 +44,8 @@ defmodule Acari.TunMan do
     {:ok, iface_pid} =
       Supervisor.start_child(
         tun_sup_pid,
-        {Iface, %{tun_name: state.tun_name, ifname: state.iface_conf[:name]}}
+        {Iface, %{tun_name: state.tun_name, ifname: state.iface_conf[:name],
+        tap: state.iface_conf[:tap]}}
       )
 
     Process.link(iface_pid)
