@@ -36,7 +36,6 @@ defmodule Acari.TunMan do
 
   @impl true
   def handle_continue(:init, %{tun_sup_pid: tun_sup_pid} = state) do
-    IO.inspect(state)
     Logger.info("#{state.tun_name}: Tunnel (re)started")
     sslinks = :ets.new(:sslinks, [:set, :protected])
     Process.flag(:trap_exit, true)
