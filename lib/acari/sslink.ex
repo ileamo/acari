@@ -60,7 +60,7 @@ defmodule Acari.SSLink do
       })
 
     {_, ifsnd_pid} = Iface.get_if_info(iface_pid)
-    TunMan.set_sslink_snd_pid(tun_man_pid, name, snd_pid)
+    TunMan.set_sslink_snd_pid(tun_man_pid, name, snd_pid, proto: proto)
     schedule_ping(:first)
 
     {:noreply,

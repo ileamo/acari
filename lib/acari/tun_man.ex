@@ -70,11 +70,11 @@ defmodule Acari.TunMan do
 
   @impl true
   def handle_cast(
-        {:set_sslink_snd_pid, name, pid},
+        {:set_sslink_snd_pid, name, pid, opts},
         %State{sslinks: sslinks, iface_pid: iface_pid} = state
       ) do
     true = :ets.update_element(sslinks, name, {3, pid})
-    sslink_opened(state, name, :ets.info(sslinks, :size))
+    sslink_opened(state, name, opts)
 
     case state.current_link do
       {nil, _} ->
@@ -231,7 +231,7 @@ defmodule Acari.TunMan do
           nil
       end
 
-    sslink_closed(state, name, :ets.info(sslinks, :size))
+    sslink_closed(state, name, num: :ets.info(sslinks, :size))
 
     {:noreply, update_best_link(state)}
   end
@@ -370,12 +370,12 @@ defmodule Acari.TunMan do
     {:via, Registry, {Registry.TunMan, name}}
   end
 
-  defp sslink_opened(state, name, num) do
-    GenServer.cast(state.master_pid, {:sslink_opened, state.tun_name, name, num})
+  defp sslink_opened(state, name, opts) do
+    GenServer.cast(state.master_pid, {:sslink_opened, state.tun_name, name, opts})
   end
 
-  defp sslink_closed(state, name, num) do
-    GenServer.cast(state.master_pid, {:sslink_closed, state.tun_name, name, num})
+  defp sslink_closed(state, name, opts) do
+    GenServer.cast(state.master_pid, {:sslink_closed, state.tun_name, name, opts})
   end
 
   # Client
@@ -402,8 +402,8 @@ defmodule Acari.TunMan do
     GenServer.call(via(tun_name), :get_state)
   end
 
-  def set_sslink_snd_pid(tun_pid, name, pid) do
-    GenServer.cast(tun_pid, {:set_sslink_snd_pid, name, pid})
+  def set_sslink_snd_pid(tun_pid, name, pid, opts \\ []) do
+    GenServer.cast(tun_pid, {:set_sslink_snd_pid, name, pid, opts})
   end
 
   def set_sslink_params(tun_pid, name, params) do
