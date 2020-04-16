@@ -44,8 +44,20 @@ defmodule Acari.SSLink do
       ) do
     sslsocket = connector.(:connect)
 
+    proto =
+      try do
+        connector.(:proto)
+      rescue
+        _ -> :ssl
+      end
+
     {:ok, snd_pid} =
-      Acari.SSLinkSnd.start_link(%{sslsocket: sslsocket, name: name, tun_name: state.tun_name})
+      Acari.SSLinkSnd.start_link(%{
+        sslsocket: sslsocket,
+        name: name,
+        tun_name: state.tun_name,
+        proto: proto
+      })
 
     {_, ifsnd_pid} = Iface.get_if_info(iface_pid)
     TunMan.set_sslink_snd_pid(tun_man_pid, name, snd_pid)
@@ -73,22 +85,12 @@ defmodule Acari.SSLink do
   end
 
   @impl true
-  def handle_info({:ssl, _sslsocket, frame}, %{ifsnd_pid: ifsnd_pid} = state) do
-    state =
-      case parse(:erlang.list_to_binary(frame)) do
-        {:int, com, data} ->
-          exec_link_command(state, com, data)
+  def handle_info({:ssl, _sslsocket, frame}, state) do
+    receive_frame(frame, state)
+  end
 
-        {:ext, com, data} ->
-          TunMan.recv_tun_com(state.tun_man_pid, com, data)
-          state
-
-        packet ->
-          Acari.IfaceSnd.send(ifsnd_pid, packet)
-          state
-      end
-
-    {:noreply, state}
+  def handle_info({:tcp, _sslsocket, frame}, state) do
+    receive_frame(frame, state)
   end
 
   def handle_info({:ssl_closed, _sslsocket}, %{name: name, tun_name: tun_name} = state) do
@@ -96,7 +98,17 @@ defmodule Acari.SSLink do
     {:stop, :shutdown, state}
   end
 
+  def handle_info({:tcp_closed, _sslsocket}, %{name: name, tun_name: tun_name} = state) do
+    Logger.info("#{tun_name}: #{name}: Closed")
+    {:stop, :shutdown, state}
+  end
+
   def handle_info({:ssl_error, _sslsocket, reason}, %{name: name, tun_name: tun_name} = state) do
+    Logger.error("#{tun_name}: #{name}: #{inspect(reason)}")
+    {:stop, :shutdown, state}
+  end
+
+  def handle_info({:tcp_error, _sslsocket, reason}, %{name: name, tun_name: tun_name} = state) do
     Logger.error("#{tun_name}: #{name}: #{inspect(reason)}")
     {:stop, :shutdown, state}
   end
@@ -126,9 +138,30 @@ defmodule Acari.SSLink do
   end
 
   def handle_info(msg, state) do
-    Logger.warn("SSL: unknown message: #{inspect(msg)}")
+    Logger.warn("SSLink: unknown message: #{inspect(msg)}")
     {:noreply, state}
   end
+
+
+  defp receive_frame(frame, %{ifsnd_pid: ifsnd_pid} = state) do
+    state =
+      case parse(:erlang.list_to_binary(frame)) do
+        {:int, com, data} ->
+          exec_link_command(state, com, data)
+
+        {:ext, com, data} ->
+          TunMan.recv_tun_com(state.tun_man_pid, com, data)
+          state
+
+        packet ->
+          Acari.IfaceSnd.send(ifsnd_pid, packet)
+          state
+      end
+
+    {:noreply, state}
+  end
+
+
 
   # Client
 
@@ -212,21 +245,21 @@ defmodule Acari.SSLinkSnd do
   end
 
   @impl true
-  def handle_cast({:send, packet}, state = %{sslsocket: sslsocket}) do
-    case :ssl.send(sslsocket, packet) do
+  def handle_cast({:send, packet}, state = %{sslsocket: sslsocket, proto: proto}) do
+    case proto.send(sslsocket, packet) do
       :ok ->
         {:noreply, state}
 
       {:error, {:badarg, {:packet_to_large, size, _max}}} ->
         Logger.error(
-          "#{state.tun_name}: #{state.name}: Can't send to SSL socket: packet_to_large: #{size} bytes"
+          "#{state.tun_name}: #{state.name}: Can't send to socket: packet_to_large: #{size} bytes"
         )
 
         {:noreply, state}
 
       {:error, reason} ->
         Logger.error(
-          "#{state.tun_name}: #{state.name}: Can't send to SSL socket: #{inspect(reason)}"
+          "#{state.tun_name}: #{state.name}: Can't send to socket: #{inspect(reason)}"
         )
 
         {:stop, :shutdown}
