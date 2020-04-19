@@ -45,10 +45,24 @@ defmodule Acari.SSLink do
     sslsocket = connector.(:connect)
 
     proto =
-      try do
-        connector.(:proto)
-      rescue
-        _ -> :ssl
+      case sslsocket do
+        {:sslsocket, _, _} -> :ssl
+        _ -> :gen_tcp
+      end
+
+    proto_ver =
+      case proto do
+        :gen_tcp ->
+          :tcp
+
+        :ssl ->
+          case :ssl.connection_information(sslsocket, [:protocol]) |> IO.inspect() do
+            {:ok, [protocol: ver]} -> ver
+            _ -> :unknown
+          end
+
+        _ ->
+          :unknown
       end
 
     {:ok, snd_pid} =
@@ -60,7 +74,7 @@ defmodule Acari.SSLink do
       })
 
     {_, ifsnd_pid} = Iface.get_if_info(iface_pid)
-    TunMan.set_sslink_snd_pid(tun_man_pid, name, snd_pid, proto: proto)
+    TunMan.set_sslink_snd_pid(tun_man_pid, name, snd_pid, proto: proto_ver)
     schedule_ping(:first)
 
     {:noreply,
@@ -142,7 +156,6 @@ defmodule Acari.SSLink do
     {:noreply, state}
   end
 
-
   defp receive_frame(frame, %{ifsnd_pid: ifsnd_pid} = state) do
     state =
       case parse(:erlang.list_to_binary(frame)) do
@@ -160,8 +173,6 @@ defmodule Acari.SSLink do
 
     {:noreply, state}
   end
-
-
 
   # Client
 
@@ -258,9 +269,7 @@ defmodule Acari.SSLinkSnd do
         {:noreply, state}
 
       {:error, reason} ->
-        Logger.error(
-          "#{state.tun_name}: #{state.name}: Can't send to socket: #{inspect(reason)}"
-        )
+        Logger.error("#{state.tun_name}: #{state.name}: Can't send to socket: #{inspect(reason)}")
 
         {:stop, :shutdown}
     end
