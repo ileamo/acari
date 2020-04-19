@@ -56,7 +56,7 @@ defmodule Acari.SSLink do
           :tcp
 
         :ssl ->
-          case :ssl.connection_information(sslsocket, [:protocol]) |> IO.inspect() do
+          case :ssl.connection_information(sslsocket, [:protocol]) do
             {:ok, [protocol: ver]} -> ver
             _ -> :unknown
           end
