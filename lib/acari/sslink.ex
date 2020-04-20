@@ -50,19 +50,19 @@ defmodule Acari.SSLink do
         _ -> :gen_tcp
       end
 
-    proto_ver =
+    proto_info =
       case proto do
         :gen_tcp ->
-          :tcp
+          [protocol: :tcp]
 
         :ssl ->
-          case :ssl.connection_information(sslsocket, [:protocol]) do
-            {:ok, [protocol: ver]} -> ver
-            _ -> :unknown
+          case :ssl.connection_information(sslsocket, [:protocol, :selected_cipher_suite]) do
+            {:ok, info} when is_list(info) -> info
+            _ -> [protocol: :unknown]
           end
 
         _ ->
-          :unknown
+          [protocol: :unknown]
       end
 
     {:ok, snd_pid} =
@@ -74,7 +74,7 @@ defmodule Acari.SSLink do
       })
 
     {_, ifsnd_pid} = Iface.get_if_info(iface_pid)
-    TunMan.set_sslink_snd_pid(tun_man_pid, name, snd_pid, proto: proto_ver)
+    TunMan.set_sslink_snd_pid(tun_man_pid, name, snd_pid, proto_info: proto_info)
     schedule_ping(:first)
 
     {:noreply,
@@ -118,12 +118,12 @@ defmodule Acari.SSLink do
   end
 
   def handle_info({:ssl_error, _sslsocket, reason}, %{name: name, tun_name: tun_name} = state) do
-    Logger.error("#{tun_name}: #{name}: #{inspect(reason)}")
+    Logger.error("#{tun_name}: #{name}: SSL error: #{inspect(reason)}")
     {:stop, :shutdown, state}
   end
 
   def handle_info({:tcp_error, _sslsocket, reason}, %{name: name, tun_name: tun_name} = state) do
-    Logger.error("#{tun_name}: #{name}: #{inspect(reason)}")
+    Logger.error("#{tun_name}: #{name}: TCP error: #{inspect(reason)}")
     {:stop, :shutdown, state}
   end
 
