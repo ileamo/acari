@@ -136,10 +136,9 @@ defmodule Acari.Iface do
   def redirect(tun_name, com, payload, used_nodes \\ []) do
     case Node.list() -- used_nodes do
       [node | _] ->
-        Phoenix.PubSub.direct_broadcast_from(
+        Phoenix.PubSub.direct_broadcast(
           node,
           AcariServer.PubSub,
-          self(),
           "rcv:#{tun_name}",
           {:redirect, com, payload, [node() | used_nodes]}
         )
@@ -186,10 +185,9 @@ defmodule Acari.IfaceSnd do
         :tuncer.send(ifsocket, packet)
 
       node ->
-        Phoenix.PubSub.direct_broadcast_from(
+        Phoenix.PubSub.direct_broadcast(
           node,
           AcariServer.PubSub,
-          self(),
           "snd:#{state.tun_name}",
           {:send, packet}
         )
