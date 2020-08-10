@@ -30,26 +30,26 @@ defmodule Acari.Iface do
   ## Callbacks
   @impl true
   def init(%{tun_name: tun_name} = params) do
-    ifname = params[:ifname] || ""
-    {:ok, ifsocket} = :tuncer.create(ifname, [:tun, :no_pi, active: true])
-    :tuncer.persist(ifsocket, false)
-    ifname = :tuncer.devname(ifsocket)
-    :ok = if_up(ifname)
-
-    {:ok, ifsnd_pid} =
-      Acari.IfaceSnd.start_link(%{tun_name: tun_name, ifsocket: ifsocket, ifname: ifname})
-
-    if Application.get_env(:acari, :server) do
-      Phoenix.PubSub.subscribe(AcariServer.PubSub, "rcv:#{tun_name}")
-    end
-
-    Logger.info("#{tun_name}: iface #{ifname}: created")
+    # ifname = params[:ifname] || ""
+    # {:ok, ifsocket} = :tuncer.create(ifname, [:tun, :no_pi, active: true])
+    # :tuncer.persist(ifsocket, false)
+    # ifname = :tuncer.devname(ifsocket)
+    # :ok = if_up(ifname)
+    #
+    # {:ok, ifsnd_pid} =
+    #   Acari.IfaceSnd.start_link(%{tun_name: tun_name, ifsocket: ifsocket, ifname: ifname})
+    #
+    # if Application.get_env(:acari, :server) do
+    #   Phoenix.PubSub.subscribe(AcariServer.PubSub, "rcv:#{tun_name}")
+    # end
+    #
+    # Logger.info("#{tun_name}: iface #{ifname}: created")
 
     state = %State{
-      tun_name: tun_name,
-      ifsocket: ifsocket,
-      ifname: ifname,
-      ifsnd_pid: ifsnd_pid
+      # tun_name: tun_name,
+      # ifsocket: ifsocket,
+      # ifname: ifname,
+      # ifsnd_pid: ifsnd_pid
     }
 
     {:ok, state}
@@ -229,6 +229,6 @@ defmodule Acari.IfaceSnd do
   # Client
 
   def send(ifsnd_pid, packet) do
-    GenServer.cast(ifsnd_pid, {:send, packet})
+    #GenServer.cast(ifsnd_pid, {:send, packet})
   end
 end
